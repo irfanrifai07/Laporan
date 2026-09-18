@@ -338,7 +338,6 @@ export const EntryView: React.FC<EntryViewProps> = ({
               <tr className="bg-slate-900/90 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
                 <th className="px-4 py-3.5 text-center w-12">No</th>
                 <th className="px-4 py-3.5">Kecamatan</th>
-                <th className="px-4 py-3.5 text-center">Metode</th>
                 <th className="px-4 py-3.5 text-center">PPM Target</th>
                 <th className="px-4 py-3.5 text-center">Bln Lalu</th>
                 <th className="px-4 py-3.5 text-center">Bln Ini</th>
@@ -367,12 +366,6 @@ export const EntryView: React.FC<EntryViewProps> = ({
 
                     <td className="px-4 py-3 text-xs font-bold text-slate-200">
                       {row.kecamatan}
-                    </td>
-
-                    <td className="px-4 py-3 text-center">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                        {row.category}
-                      </span>
                     </td>
 
                     <td className="px-4 py-3 text-center text-xs font-semibold text-slate-300">

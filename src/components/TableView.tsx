@@ -624,7 +624,6 @@ export const TableView: React.FC<TableViewProps> = ({
                 <tr className="bg-slate-900/90 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
                   <th className="px-4 py-3.5 text-center w-12">No</th>
                   <th className="px-4 py-3.5">Kecamatan</th>
-                  <th className="px-4 py-3.5 text-center">Metode</th>
                   <th className="px-4 py-3.5 text-center">PPM Target</th>
                   <th className="px-4 py-3.5 text-center">Bln Lalu</th>
                   <th className="px-4 py-3.5 text-center">Bln Ini</th>
@@ -652,12 +651,6 @@ export const TableView: React.FC<TableViewProps> = ({
 
                       <td className="px-4 py-3 text-xs font-bold text-slate-200">
                         {row.kecamatan}
-                      </td>
-
-                      <td className="px-4 py-3 text-center">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                          {row.category}
-                        </span>
                       </td>
 
                       <td className="px-4 py-3 text-center text-xs font-semibold text-slate-300">
@@ -710,7 +703,7 @@ export const TableView: React.FC<TableViewProps> = ({
 
                 {displayedSingleMonthRows.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-16 text-center">
+                    <td colSpan={8} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center justify-center text-slate-400 space-y-2">
                         <Search className="w-8 h-8 text-slate-600 mb-1" />
                         <p className="text-sm font-bold text-slate-300">Data Tidak Ditemukan</p>
