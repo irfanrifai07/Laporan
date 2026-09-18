@@ -1,0 +1,6 @@
+{
+  "name": "Dashboard Laporan Capaian Bulanan",
+  "description": "Dashboard laporan capaian bulanan pelayanan KB dengan visualisasi grafik, tabel data terpisah, dan sidebar entri data untuk metode MOW, MOP, IUD, IMPLAN, SUNTIK, PIL, dan KONDOM.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
