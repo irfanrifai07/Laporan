@@ -15,6 +15,7 @@ import {
   METHOD_DETAILS, 
   RawDataRow 
 } from '../types';
+import { getOfficialPpm } from '../data/ppmData';
 
 interface EntryViewProps {
   data: RawDataRow[];
@@ -112,9 +113,11 @@ export const EntryView: React.FC<EntryViewProps> = ({
     });
   }, [data, currentCategory, currentMonth]);
 
-  // Baris JUMLAH (Total Kabupaten)
+  // Baris JUMLAH (Total Kabupaten) - Target PPM selalu mengacu ke Data PPM resmi
   const totalRow = useMemo<SingleMonthRow>(() => {
-    const totalPpm = singleMonthDataList.reduce((s, r) => s + r.ppm, 0);
+    const officialKabPpm = getOfficialPpm('JUMLAH', currentCategory);
+    const sumPpm = singleMonthDataList.reduce((s, r) => s + r.ppm, 0);
+    const totalPpm = officialKabPpm > 0 ? officialKabPpm : sumPpm;
     const totalBlnLalu = singleMonthDataList.reduce((s, r) => s + r.blnLalu, 0);
     const totalBlnIni = singleMonthDataList.reduce((s, r) => s + r.blnIni, 0);
     const totalJumlah = singleMonthDataList.reduce((s, r) => s + r.jumlah, 0);
@@ -387,7 +390,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center justify-between text-[10px] font-black text-slate-300">
-                          <span>{row.percentage.toFixed(1)}%</span>
+                          <span>{row.percentage.toFixed(2)}%</span>
                           {row.percentage >= 100 && (
                             <span className="text-[9px] text-emerald-400 font-bold">LUNAS</span>
                           )}

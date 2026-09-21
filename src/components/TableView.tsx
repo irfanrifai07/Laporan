@@ -6,15 +6,17 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Table as TableIcon, Search, Calendar, Download, X, 
-  Layers, RotateCcw, CalendarDays, TrendingUp
+  Layers, RotateCcw, CalendarDays, TrendingUp, FileSpreadsheet
 } from 'lucide-react';
 import { 
   RawDataRow, 
   MONTHS, 
   METHOD_KEYS, 
-  METHOD_DETAILS,
+  METHOD_DETAILS, 
   KECAMATAN_LIST 
 } from '../types';
+import { exportTableToExcel } from '../utils/excelExport';
+import { getOfficialPpm } from '../data/ppmData';
 
 interface TableViewProps {
   data: RawDataRow[];
@@ -73,14 +75,15 @@ export const TableView: React.FC<TableViewProps> = ({
 
     // Olah untuk setiap kecamatan di Bojonegoro
     const districtRows: YearlyRow[] = KECAMATAN_LIST.map(kec => {
-      // Ambil PPM target dari data
+      // Ambil PPM target resmi dari Data PPM
+      const officialPpm = getOfficialPpm(kec, activeCategory);
       const sampleRow = data.find(r => 
         r[0]?.toString().toUpperCase().trim() === kec.toUpperCase().trim() &&
         (matchCat === 'SEMUA METODE' 
           ? r[7]?.toString().toUpperCase().trim() === 'SEMUA METODE' 
           : r[7]?.toString().toUpperCase().trim() === matchCat)
       );
-      const ppm = sampleRow ? (parseFloat(String(sampleRow[1])) || 0) : 0;
+      const ppm = officialPpm > 0 ? officialPpm : (sampleRow ? (parseFloat(String(sampleRow[1])) || 0) : 0);
 
       // Ambil capaian per bulan untuk Januari s/d Desember
       const monthly: { [month: string]: number } = {};
@@ -112,8 +115,9 @@ export const TableView: React.FC<TableViewProps> = ({
       };
     });
 
-    // Hitung baris JUMLAH KABUPATEN
-    const kabPpm = districtRows.reduce((s, r) => s + r.ppm, 0);
+    // Hitung baris JUMLAH KABUPATEN - selalu mengacu pada Data PPM resmi
+    const officialKabPpm = getOfficialPpm('JUMLAH', activeCategory);
+    const kabPpm = officialKabPpm > 0 ? officialKabPpm : districtRows.reduce((s, r) => s + r.ppm, 0);
     const kabMonthly: { [month: string]: number } = {};
     MONTHS.forEach(m => {
       kabMonthly[m] = districtRows.reduce((s, r) => s + (r.monthly[m] || 0), 0);
@@ -194,15 +198,20 @@ export const TableView: React.FC<TableViewProps> = ({
         return categoryMatch && monthMatch;
       })
       .map(row => {
-        const ppm = parseFloat(String(row[1])) || 0;
+        const kecName = row[0]?.toString() || '';
+        const isJumlah = kecName.toUpperCase().includes('JUMLAH');
+        const officialTarget = isJumlah 
+          ? getOfficialPpm('JUMLAH', activeCategory)
+          : getOfficialPpm(kecName, activeCategory);
+        const ppm = officialTarget > 0 ? officialTarget : (parseFloat(String(row[1])) || 0);
         const blnLalu = parseFloat(String(row[2])) || 0;
         const blnIni = parseFloat(String(row[3])) || 0;
         const jumlah = parseFloat(String(row[4])) || 0;
-        const sisa = parseFloat(String(row[6])) || 0;
+        const sisa = ppm - jumlah;
         const percentage = ppm > 0 ? (jumlah / ppm) * 100 : 0;
 
         return {
-          kecamatan: row[0]?.toString() || '',
+          kecamatan: isJumlah ? 'JUMLAH KABUPATEN' : kecName,
           ppm,
           blnLalu,
           blnIni,
@@ -210,7 +219,7 @@ export const TableView: React.FC<TableViewProps> = ({
           percentage,
           sisa,
           category: row[7]?.toString() || activeCategory,
-          isJumlah: row[0]?.toString().toUpperCase().includes('JUMLAH')
+          isJumlah
         };
       });
   }, [data, activeCategory, selectedMonth]);
@@ -228,14 +237,26 @@ export const TableView: React.FC<TableViewProps> = ({
 
   const singleMonthSummary = useMemo(() => {
     const totalRow = singleMonthDataList.find(d => d.isJumlah);
-    if (totalRow) return totalRow;
+    const officialKabPpm = getOfficialPpm('JUMLAH', activeCategory);
+
+    if (totalRow) {
+      const ppm = officialKabPpm > 0 ? officialKabPpm : totalRow.ppm;
+      const sisa = ppm - totalRow.jumlah;
+      const percentage = ppm > 0 ? (totalRow.jumlah / ppm) * 100 : 0;
+      return {
+        ...totalRow,
+        ppm,
+        sisa,
+        percentage
+      };
+    }
 
     const districtRows = singleMonthDataList.filter(d => !d.isJumlah);
-    const ppm = districtRows.reduce((s, r) => s + r.ppm, 0);
+    const ppm = officialKabPpm > 0 ? officialKabPpm : districtRows.reduce((s, r) => s + r.ppm, 0);
     const blnLalu = districtRows.reduce((s, r) => s + r.blnLalu, 0);
     const blnIni = districtRows.reduce((s, r) => s + r.blnIni, 0);
     const jumlah = districtRows.reduce((s, r) => s + r.jumlah, 0);
-    const sisa = districtRows.reduce((s, r) => s + r.sisa, 0);
+    const sisa = ppm - jumlah;
     const percentage = ppm > 0 ? (jumlah / ppm) * 100 : 0;
 
     return {
@@ -320,6 +341,16 @@ export const TableView: React.FC<TableViewProps> = ({
     }
   };
 
+  // Export data tabel murni ke file Excel (.xlsx)
+  const handleExportExcel = () => {
+    exportTableToExcel({
+      data,
+      selectedMonth,
+      activeCategory,
+      tableMode
+    });
+  };
+
   return (
     <div className="space-y-4">
       {/* Kartu Tabel Utama */}
@@ -384,6 +415,18 @@ export const TableView: React.FC<TableViewProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Tombol Download Excel Tabel */}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md shadow-emerald-950/40 transition-all cursor-pointer hover:shadow-emerald-600/30 active:scale-95"
+              title={`Download data tabel (${activeCategory} - ${selectedMonth}) berupa file Excel (.xlsx)`}
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Download Excel</span>
+              <Download className="w-3.5 h-3.5 opacity-90 ml-0.5" />
+            </button>
           </div>
         </div>
 
@@ -437,7 +480,7 @@ export const TableView: React.FC<TableViewProps> = ({
               <span className={`text-xs sm:text-sm font-black ${
                 yearlySummaryStats.percentage >= 80 ? 'text-emerald-400' : yearlySummaryStats.percentage >= 50 ? 'text-amber-400' : 'text-rose-400'
               }`}>
-                {yearlySummaryStats.percentage.toFixed(1)}%
+                {yearlySummaryStats.percentage.toFixed(2)}%
               </span>
             </div>
             <div className="bg-slate-900/50 p-2 rounded-lg border border-slate-800">
@@ -478,7 +521,7 @@ export const TableView: React.FC<TableViewProps> = ({
               <span className={`text-xs sm:text-sm font-black ${
                 singleMonthSummary.percentage >= 80 ? 'text-emerald-400' : singleMonthSummary.percentage >= 50 ? 'text-amber-400' : 'text-rose-400'
               }`}>
-                {singleMonthSummary.percentage.toFixed(1)}%
+                {singleMonthSummary.percentage.toFixed(2)}%
               </span>
             </div>
           </div>
@@ -561,7 +604,7 @@ export const TableView: React.FC<TableViewProps> = ({
                       <td className="px-3 py-3">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center justify-between text-[10px] font-black text-slate-300">
-                            <span>{row.percentage.toFixed(1)}%</span>
+                            <span>{row.percentage.toFixed(2)}%</span>
                             {row.percentage >= 100 && (
                               <span className="text-[9px] text-emerald-400 font-bold">LUNAS</span>
                             )}
@@ -672,7 +715,7 @@ export const TableView: React.FC<TableViewProps> = ({
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center justify-between text-[10px] font-black text-slate-300">
-                            <span>{row.percentage.toFixed(1)}%</span>
+                            <span>{row.percentage.toFixed(2)}%</span>
                             {row.percentage >= 100 && (
                               <span className="text-[9px] text-emerald-400 font-bold">LUNAS</span>
                             )}

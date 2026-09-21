@@ -80,7 +80,7 @@ export const PpmView: React.FC<PpmViewProps> = ({ onOpenEntrySidebar }) => {
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-black text-indigo-300">{formatNumber(TOTAL_BOJONEGORO_PPM.mkjp)}</span>
             <span className="text-xs font-semibold text-indigo-400">
-              ({((TOTAL_BOJONEGORO_PPM.mkjp / TOTAL_BOJONEGORO_PPM.total) * 100).toFixed(1)}%)
+              ({((TOTAL_BOJONEGORO_PPM.mkjp / TOTAL_BOJONEGORO_PPM.total) * 100).toFixed(2)}%)
             </span>
           </div>
           <p className="text-[10px] text-slate-500 mt-1">IUD, MOW, MOP, Implan</p>
@@ -96,7 +96,7 @@ export const PpmView: React.FC<PpmViewProps> = ({ onOpenEntrySidebar }) => {
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-black text-sky-300">{formatNumber(TOTAL_BOJONEGORO_PPM.nonMkjp)}</span>
             <span className="text-xs font-semibold text-sky-400">
-              ({((TOTAL_BOJONEGORO_PPM.nonMkjp / TOTAL_BOJONEGORO_PPM.total) * 100).toFixed(1)}%)
+              ({((TOTAL_BOJONEGORO_PPM.nonMkjp / TOTAL_BOJONEGORO_PPM.total) * 100).toFixed(2)}%)
             </span>
           </div>
           <p className="text-[10px] text-slate-500 mt-1">Suntik, Pil, Kondom</p>

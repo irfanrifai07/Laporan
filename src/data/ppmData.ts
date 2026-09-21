@@ -87,14 +87,35 @@ export const TOTAL_BOJONEGORO_PPM: KecamatanPpmTarget = {
 };
 
 /**
- * Mendapatkan target PPM resmi berdasarkan nama kecamatan dan metode/kategori
+ * Menentukan apakah baris merupakan baris total akumulasi Kabupaten Bojonegoro.
+ * PENTING: "BOJONEGORO" adalah nama salah satu dari 28 kecamatan, sehingga hanya string
+ * yang diawali/mengandung "JUMLAH", "TOTAL", atau eksplisit "KABUPATEN BOJONEGORO" yang dianggap baris total.
+ */
+export function isKabupatenTotalRow(kecamatan: string): boolean {
+  if (!kecamatan) return false;
+  const clean = kecamatan.toUpperCase().trim();
+  if (clean === 'BOJONEGORO') return false; // Ini Kecamatan Bojonegoro, bukan total kabupaten!
+  return (
+    clean.startsWith('JUMLAH') ||
+    clean.includes('JUMLAH') ||
+    clean === 'TOTAL' ||
+    clean === 'KABUPATEN BOJONEGORO' ||
+    clean === 'JUMLAH (KABUPATEN BOJONEGORO)' ||
+    clean === 'TOTAL KABUPATEN' ||
+    clean.includes('KABUPATEN')
+  );
+}
+
+/**
+ * Mendapatkan target PPM resmi berdasarkan nama kecamatan dan metode/kategori.
+ * Data PPM resmi dari TOTAL_BOJONEGORO_PPM dan RAW_PPM_DATA adalah sumber kebenaran tunggal (single source of truth).
  */
 export function getOfficialPpm(kecamatan: string, methodOrCategory: string): number {
-  const cleanKec = kecamatan.toUpperCase().trim();
-  const cleanCat = methodOrCategory.toUpperCase().trim();
+  const cleanKec = kecamatan ? kecamatan.toUpperCase().trim() : '';
+  const cleanCat = methodOrCategory ? methodOrCategory.toUpperCase().trim() : '';
 
-  // Jika baris JUMLAH / KABUPATEN
-  if (cleanKec.includes('JUMLAH') || cleanKec.includes('BOJONEGORO')) {
+  // 1. Jika baris JUMLAH / AKUMULASI KABUPATEN BOJONEGORO
+  if (isKabupatenTotalRow(cleanKec)) {
     if (cleanCat === 'IUD') return TOTAL_BOJONEGORO_PPM.IUD;
     if (cleanCat === 'MOW') return TOTAL_BOJONEGORO_PPM.MOW;
     if (cleanCat === 'MOP') return TOTAL_BOJONEGORO_PPM.MOP;
@@ -105,8 +126,10 @@ export function getOfficialPpm(kecamatan: string, methodOrCategory: string): num
     if (cleanCat === 'MKJP') return TOTAL_BOJONEGORO_PPM.mkjp;
     if (cleanCat === 'NON MKJP') return TOTAL_BOJONEGORO_PPM.nonMkjp;
     if (cleanCat === 'SEMUA METODE') return TOTAL_BOJONEGORO_PPM.total;
+    return TOTAL_BOJONEGORO_PPM.total;
   }
 
+  // 2. Jika kecamatan spesifik (termasuk Kecamatan BOJONEGORO)
   const kecTarget = RAW_PPM_DATA[cleanKec];
   if (!kecTarget) return 0;
 

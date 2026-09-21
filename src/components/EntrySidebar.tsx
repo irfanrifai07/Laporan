@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   X, Save, RotateCcw, CheckCircle2, ChevronRight, Layers, 
   ShieldCheck, Clock, Calculator, ArrowRight, Download, 
-  HelpCircle, AlertCircle, FileSpreadsheet
+  HelpCircle, AlertCircle, FileSpreadsheet, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -19,12 +19,14 @@ import {
   AllMethodsEntry, 
   RawDataRow 
 } from '../types';
+import { getOfficialPpm } from '../data/ppmData';
 import { 
   getInitialMethodEntry, 
   extractExistingValues, 
   applyMethodEntryToData, 
   saveLocalEntriesToStorage,
-  getLastSavedTimestamp
+  getLastSavedTimestamp,
+  getPreviousMonth
 } from '../utils/dataManager';
 
 interface EntrySidebarProps {
@@ -53,6 +55,8 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   const [lastSavedTime, setLastSavedTime] = useState<string>('Tersimpan');
   const prevTargetRef = useRef<string>('');
 
+  const prevMonth = useMemo(() => getPreviousMonth(selectedBulan), [selectedBulan]);
+
   // Sync with default props when sidebar opens
   useEffect(() => {
     if (isOpen) {
@@ -75,17 +79,19 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
     }
   }, [isOpen, selectedKecamatan, selectedBulan, currentData]);
 
-  // Handle single input change with REAL-TIME AUTO-SAVE
+  // Handle single input change with REAL-TIME AUTO-SAVE (Hanya untuk Bln Lalu & Bln Ini; PPM resmi terkunci)
   const handleInputChange = (
     method: ContraceptiveMethod, 
-    field: 'ppm' | 'blnLalu' | 'blnIni', 
+    field: 'blnLalu' | 'blnIni', 
     value: string
   ) => {
     const numValue = Math.max(0, parseFloat(value) || 0);
+    const lockedPpm = getOfficialPpm(selectedKecamatan, method);
     const newEntries: AllMethodsEntry = {
       ...entries,
       [method]: {
         ...entries[method],
+        ppm: lockedPpm,
         [field]: numValue
       }
     };
@@ -319,6 +325,17 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                 })}
               </div>
 
+              {/* Info Banner: Target PPM Resmi & Bulan Lalu Otomatis */}
+              <div className="bg-teal-950/40 border border-teal-500/30 rounded-xl p-3 flex items-start space-x-2.5 text-teal-300 text-xs shadow-sm">
+                <ShieldCheck className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-[11px] text-teal-300">Target PPM & Capaian Kumulatif Otomatis</p>
+                  <p className="text-[10px] text-slate-300 leading-relaxed">
+                    Target PPM untuk <span className="font-bold text-teal-300">{selectedKecamatan}</span> telah ditetapkan resmi. Data <span className="font-bold text-amber-300">Bulan Lalu</span> otomatis diambil dari jumlah capaian {prevMonth ? `bulan sebelumnya (${prevMonth})` : 'awal tahun'}. Anda cukup mengentri realisasi <span className="font-bold text-white">Bulan Ini</span>.
+                  </p>
+                </div>
+              </div>
+
               {/* Input Forms for Methods */}
               <div className="space-y-3">
                 {METHOD_KEYS.map(methodKey => {
@@ -326,9 +343,10 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
 
                   const meta = METHOD_DETAILS[methodKey];
                   const entry = entries[methodKey];
+                  const lockedPpm = getOfficialPpm(selectedKecamatan, methodKey);
                   const jumlah = (entry.blnLalu || 0) + (entry.blnIni || 0);
-                  const percentage = entry.ppm > 0 ? (jumlah / entry.ppm) * 100 : 0;
-                  const sisa = (entry.ppm || 0) - jumlah;
+                  const percentage = lockedPpm > 0 ? (jumlah / lockedPpm) * 100 : 0;
+                  const sisa = lockedPpm - jumlah;
 
                   return (
                     <div 
@@ -350,47 +368,91 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                         </span>
                       </div>
 
-                      {/* 3 Input Columns: PPM, Bln Lalu, Bln Ini */}
+                      {/* 3 Input Columns: PPM (Terkunci), Bln Lalu (Otomatis), Bln Ini (Entri) */}
                       <div className="grid grid-cols-3 gap-2.5 sm:gap-3 mb-3">
                         <div>
-                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">
-                            PPM (Target)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={entry.ppm === 0 ? '' : entry.ppm}
-                            placeholder="0"
-                            onChange={(e) => handleInputChange(methodKey, 'ppm', e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                          />
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                              PPM (Target)
+                            </label>
+                            <span 
+                              className="text-[8px] font-bold text-amber-400/90 flex items-center gap-0.5 bg-amber-500/10 px-1 py-0.5 rounded border border-amber-500/20" 
+                              title="Target resmi ditetapkan & terkunci (tidak bisa dirubah secara manual)"
+                            >
+                              <Lock className="w-2.5 h-2.5 text-amber-400" /> Terkunci
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              readOnly
+                              disabled
+                              tabIndex={-1}
+                              value={formatNumber(lockedPpm)}
+                              title="Data PPM (Target) resmi Kabupaten Bojonegoro sudah ditetapkan dan tidak bisa dirubah secara manual"
+                              className="w-full bg-slate-950/70 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs font-black text-slate-300 cursor-not-allowed select-none focus:outline-none"
+                            />
+                          </div>
                         </div>
 
                         <div>
-                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">
-                            Bln Lalu
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={entry.blnLalu === 0 ? '' : entry.blnLalu}
-                            placeholder="0"
-                            onChange={(e) => handleInputChange(methodKey, 'blnLalu', e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500"
-                          />
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                              Bln Lalu
+                            </label>
+                            {prevMonth ? (
+                              <span 
+                                className="text-[8px] font-bold text-teal-400/90 flex items-center gap-0.5 bg-teal-500/10 px-1 py-0.5 rounded border border-teal-500/20"
+                                title={`Otomatis diambil dari jumlah capaian bulan ${prevMonth}`}
+                              >
+                                Auto: {prevMonth}
+                              </span>
+                            ) : (
+                              <span className="text-[8px] font-bold text-slate-400 bg-slate-800 px-1 py-0.5 rounded border border-slate-700">
+                                Awal Thn
+                              </span>
+                            )}
+                          </div>
+                          {prevMonth ? (
+                            <div className="relative">
+                              <input
+                                type="text"
+                                readOnly
+                                disabled
+                                tabIndex={-1}
+                                value={formatNumber(entry.blnLalu || 0)}
+                                title={`Data Bulan Lalu otomatis diambil dari jumlah capaian bulan ${prevMonth} (${formatNumber(entry.blnLalu || 0)})`}
+                                className="w-full bg-slate-950/70 border border-teal-800/50 rounded-lg px-2.5 py-1.5 text-xs font-black text-teal-300 cursor-not-allowed select-none focus:outline-none"
+                              />
+                            </div>
+                          ) : (
+                            <input
+                              type="number"
+                              min="0"
+                              value={entry.blnLalu === 0 ? '' : entry.blnLalu}
+                              placeholder="0"
+                              onChange={(e) => handleInputChange(methodKey, 'blnLalu', e.target.value)}
+                              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                            />
+                          )}
                         </div>
 
                         <div>
-                          <label className="block text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">
-                            Bln Ini
-                          </label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-[9px] font-black text-slate-300 uppercase tracking-wider">
+                              Bln Ini
+                            </label>
+                            <span className="text-[8px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20">
+                              Entri
+                            </span>
+                          </div>
                           <input
                             type="number"
                             min="0"
                             value={entry.blnIni === 0 ? '' : entry.blnIni}
                             placeholder="0"
                             onChange={(e) => handleInputChange(methodKey, 'blnIni', e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                            className="w-full bg-slate-900 border border-teal-500/50 rounded-lg px-2.5 py-1.5 text-xs font-black text-white focus:outline-none focus:ring-2 focus:ring-teal-400 shadow-sm"
                           />
                         </div>
                       </div>
@@ -406,7 +468,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                           <span className={`font-black ${
                             percentage >= 80 ? 'text-emerald-400' : percentage >= 50 ? 'text-amber-400' : 'text-rose-400'
                           }`}>
-                            {percentage.toFixed(1)}%
+                            {percentage.toFixed(2)}%
                           </span>
                         </div>
                         <div className="text-right">
@@ -433,21 +495,21 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                   <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/50">
                     <span className="text-[9px] font-black text-rose-400 block uppercase">MKJP</span>
                     <span className="text-xs font-bold text-slate-100 block">{formatNumber(calculatedSummaries.mkjp.jumlah)} / {formatNumber(calculatedSummaries.mkjp.ppm)}</span>
-                    <span className="text-[10px] font-extrabold text-emerald-400">{calculatedSummaries.mkjp.percentage.toFixed(1)}%</span>
+                    <span className="text-[10px] font-extrabold text-emerald-400">{calculatedSummaries.mkjp.percentage.toFixed(2)}%</span>
                   </div>
 
                   {/* NON MKJP */}
                   <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/50">
                     <span className="text-[9px] font-black text-sky-400 block uppercase">NON MKJP</span>
                     <span className="text-xs font-bold text-slate-100 block">{formatNumber(calculatedSummaries.nonMkjp.jumlah)} / {formatNumber(calculatedSummaries.nonMkjp.ppm)}</span>
-                    <span className="text-[10px] font-extrabold text-emerald-400">{calculatedSummaries.nonMkjp.percentage.toFixed(1)}%</span>
+                    <span className="text-[10px] font-extrabold text-emerald-400">{calculatedSummaries.nonMkjp.percentage.toFixed(2)}%</span>
                   </div>
 
                   {/* SEMUA METODE */}
                   <div className="bg-slate-900/80 p-2.5 rounded-lg border border-teal-500/30">
                     <span className="text-[9px] font-black text-teal-400 block uppercase">TOTAL SEMUA</span>
                     <span className="text-xs font-bold text-slate-100 block">{formatNumber(calculatedSummaries.semua.jumlah)} / {formatNumber(calculatedSummaries.semua.ppm)}</span>
-                    <span className="text-[10px] font-extrabold text-teal-300">{calculatedSummaries.semua.percentage.toFixed(1)}%</span>
+                    <span className="text-[10px] font-extrabold text-teal-300">{calculatedSummaries.semua.percentage.toFixed(2)}%</span>
                   </div>
                 </div>
               </div>

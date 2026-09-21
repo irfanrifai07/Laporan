@@ -12,7 +12,7 @@ import {
   LayoutDashboard, Table as TableIcon, Search, Menu, X, ChevronRight, 
   ShieldCheck, Clock, Layers, Filter, ArrowUp, ArrowDown, Globe,
   Activity, ArrowDownRight, ArrowUpRight, RefreshCw, AlertCircle,
-  FileSpreadsheet, Plus, Edit3, CheckCircle2, RotateCcw, Target
+  FileSpreadsheet, Plus, Edit3, CheckCircle2, RotateCcw, Target, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -25,6 +25,8 @@ import {
   METHOD_DETAILS,
   KECAMATAN_LIST 
 } from './types';
+import { exportTableToExcel } from './utils/excelExport';
+import { getOfficialPpm } from './data/ppmData';
 import { 
   loadLocalEntriesFromStorage, 
   saveLocalEntriesToStorage, 
@@ -103,7 +105,7 @@ export default function App() {
       }
       const jsonData = await response.json();
       if (Array.isArray(jsonData) && jsonData.length > 0) {
-        const synced = syncDataWithOfficialPpm(emptyEnteredAchievements(jsonData));
+        const synced = syncDataWithOfficialPpm(jsonData);
         setData(synced);
         saveLocalEntriesToStorage(synced);
       } else {
@@ -144,12 +146,12 @@ export default function App() {
       const response = await fetch(WEB_APP_URL);
       if (response.ok) {
         const jsonData = await response.json();
-        if (Array.isArray(jsonData)) {
+        if (Array.isArray(jsonData) && jsonData.length > 0) {
           const currentLocal = loadLocalEntriesFromStorage();
-          if (!currentLocal) {
-            const emptied = emptyEnteredAchievements(jsonData);
-            setData(emptied);
-            saveLocalEntriesToStorage(emptied);
+          if (!currentLocal || currentLocal.length === 0) {
+            const synced = syncDataWithOfficialPpm(jsonData);
+            setData(synced);
+            saveLocalEntriesToStorage(synced);
           }
         }
       }
@@ -172,7 +174,8 @@ export default function App() {
   const handleDataSaved = (newData: RawDataRow[], savedKec: string, savedMonth: string) => {
     setData(newData);
     saveLocalEntriesToStorage(newData);
-    setNotification(`Data untuk ${savedKec} (${savedMonth}) tersimpan otomatis.`);
+    setSelectedMonth(savedMonth);
+    setNotification(`Data untuk ${savedKec} bulan ${savedMonth} berhasil disimpan.`);
     setTimeout(() => setNotification(null), 3000);
   };
 
@@ -200,20 +203,25 @@ export default function App() {
       
       return categoryMatch && monthMatch;
     }).map(row => {
-      const ppm = parseFloat(String(row[1])) || 0;
+      const kecName = row[0]?.toString() || "";
+      const isJumlah = kecName.toUpperCase().includes("JUMLAH");
+      const officialPpm = isJumlah
+        ? getOfficialPpm('JUMLAH', activeCategory)
+        : getOfficialPpm(kecName, activeCategory);
+      const ppm = officialPpm > 0 ? officialPpm : (parseFloat(String(row[1])) || 0);
       const capaian = parseFloat(String(row[4])) || 0;
-      const sisa = parseFloat(String(row[6])) || 0;
+      const sisa = ppm - capaian;
       const percentage = ppm > 0 ? (capaian / ppm) * 100 : 0;
       
       return {
-        kecamatan: row[0]?.toString() || "",
+        kecamatan: isJumlah ? "JUMLAH (KABUPATEN BOJONEGORO)" : kecName,
         ppm,
         blnLalu: parseFloat(String(row[2])) || 0,
         blnIni: parseFloat(String(row[3])) || 0,
         jumlah: capaian,
         percentage,
         sisa,
-        isJumlah: row[0]?.toString().toUpperCase().includes("JUMLAH")
+        isJumlah
       };
     });
   }, [data, activeCategory, selectedMonth]);
@@ -225,12 +233,30 @@ export default function App() {
     const sorted = [...list].sort((a, b) => b.percentage - a.percentage);
     const totalRow = filteredData.find(d => d.isJumlah);
 
+    // Target PPM resmi dari Data PPM sebagai acuan
+    const officialTotalPpm = getOfficialPpm('JUMLAH', activeCategory);
+    const totalPpm = officialTotalPpm > 0 ? officialTotalPpm : (totalRow?.ppm || 0);
+    const totalCapaian = totalRow?.jumlah ?? list.reduce((s, r) => s + r.jumlah, 0);
+    const totalPercentage = totalPpm > 0 ? (totalCapaian / totalPpm) * 100 : 0;
+    const totalSisa = totalPpm - totalCapaian;
+
+    const aggregatedTotal = {
+      kecamatan: 'JUMLAH (KABUPATEN BOJONEGORO)',
+      ppm: totalPpm,
+      blnLalu: totalRow?.blnLalu ?? list.reduce((s, r) => s + r.blnLalu, 0),
+      blnIni: totalRow?.blnIni ?? list.reduce((s, r) => s + r.blnIni, 0),
+      jumlah: totalCapaian,
+      percentage: totalPercentage,
+      sisa: totalSisa,
+      isJumlah: true
+    };
+
     return {
       highest: sorted[0],
       lowest: sorted[sorted.length - 1],
-      total: totalRow
+      total: aggregatedTotal
     };
-  }, [filteredData]);
+  }, [filteredData, activeCategory]);
 
   const chartData = useMemo(() => {
     return filteredData
@@ -317,19 +343,64 @@ export default function App() {
               <LayoutDashboard className="w-5 h-5 shrink-0" />
               {sidebarOpen && <span className="ml-3 text-xs font-semibold">Dashboard</span>}
             </button>
-            <button 
-              onClick={() => {
-                setCurrentView(AppView.TABLE);
-                setIsEntrySidebarOpen(false);
-              }}
-              className={cn(
-                "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
-                currentView === AppView.TABLE ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
+            <div className="mb-1 space-y-1">
+              <button 
+                onClick={() => {
+                  setCurrentView(AppView.TABLE);
+                  setIsEntrySidebarOpen(false);
+                }}
+                className={cn(
+                  "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors cursor-pointer",
+                  currentView === AppView.TABLE ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
+                )}
+              >
+                <TableIcon className="w-5 h-5 shrink-0" />
+                {sidebarOpen && <span className="ml-3 text-xs font-semibold">Data Tabel</span>}
+              </button>
+
+              {/* Tombol Download Excel Khusus Data Tabel di Sidebar */}
+              {sidebarOpen ? (
+                <div className="pl-3 pr-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      exportTableToExcel({
+                        data,
+                        selectedMonth,
+                        activeCategory
+                      });
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition-all shadow-xs group cursor-pointer"
+                    title={`Download data tabel (${activeCategory} - ${selectedMonth}) saja ke format file Excel (.xlsx)`}
+                  >
+                    <span className="flex items-center gap-1.5 truncate">
+                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
+                      <span className="truncate">Download Excel</span>
+                    </span>
+                    <Download className="w-3 h-3 text-emerald-400 shrink-0 opacity-80 group-hover:opacity-100" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex justify-center pt-0.5">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      exportTableToExcel({
+                        data,
+                        selectedMonth,
+                        activeCategory
+                      });
+                    }}
+                    className="p-1.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition-colors cursor-pointer"
+                    title={`Download Tabel Excel (.xlsx) - ${activeCategory}`}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
-            >
-              <TableIcon className="w-5 h-5 shrink-0" />
-              {sidebarOpen && <span className="ml-3 text-xs font-semibold">Data Tabel</span>}
-            </button>
+            </div>
             <button 
               onClick={() => {
                 setCurrentView(AppView.ENTRY);
@@ -503,6 +574,7 @@ export default function App() {
                             cursor={{ fill: 'rgba(20, 184, 166, 0.05)' }}
                             contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
                             itemStyle={{ color: '#2dd4bf', fontWeight: 'bold' }}
+                            formatter={(val: any) => [`${Number(val).toFixed(2)}%`, 'Prosentase']}
                           />
                           <Bar dataKey="percentage" radius={[4, 4, 0, 0]}>
                             {chartData.map((entry, index) => (
@@ -539,7 +611,7 @@ export default function App() {
                             <Cell fill="#0ea5e9" />
                             <Cell fill="#ef4444" />
                             <Label 
-                              value={`${statsData.total?.percentage.toFixed(1)}%`}
+                              value={`${statsData.total?.percentage.toFixed(2)}%`}
                               position="center"
                               className="fill-slate-100 font-black text-lg"
                             />
@@ -620,7 +692,8 @@ export default function App() {
                         r[7]?.toString().toUpperCase().trim() === key &&
                         r[8]?.toString().trim() === selectedMonth
                       );
-                      const mPpm = rows.reduce((s, r) => s + (parseFloat(String(r[1])) || 0), 0);
+                      const officialTargetPpm = getOfficialPpm('JUMLAH', key);
+                      const mPpm = officialTargetPpm > 0 ? officialTargetPpm : rows.reduce((s, r) => s + (parseFloat(String(r[1])) || 0), 0);
                       const mBlnLalu = rows.reduce((s, r) => s + (parseFloat(String(r[2])) || 0), 0);
                       const mBlnIni = rows.reduce((s, r) => s + (parseFloat(String(r[3])) || 0), 0);
                       const mCapaian = rows.reduce((s, r) => s + (parseFloat(String(r[4])) || 0), 0);
@@ -673,7 +746,7 @@ export default function App() {
                                 "text-[10px] font-black",
                                 mPerc >= 80 ? "text-emerald-400" : mPerc >= 50 ? "text-amber-400" : "text-rose-400"
                               )}>
-                                {mPerc.toFixed(1)}%
+                                {mPerc.toFixed(2)}%
                               </span>
                             </div>
                           </div>
@@ -811,7 +884,7 @@ function StatCard({ label, name, value, icon: Icon, color }: { label: string, na
       <div className="flex-1 overflow-hidden">
         <label className="text-[9px] font-black uppercase tracking-widest opacity-70">{label}</label>
         <span className="block text-sm font-bold truncate text-slate-200">{name}</span>
-        <span className="block text-xl font-black">{value.toFixed(1)}%</span>
+        <span className="block text-xl font-black">{value.toFixed(2)}%</span>
       </div>
     </div>
   );
