@@ -235,3 +235,45 @@ export const ALOKON_ITEMS: AlokonItem[] = [
     keywords: ['kondom', 'condom', 'karet', 'pengaman', 'barrier']
   }
 ];
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  name: string;
+  role: 'admin' | 'plkb' | 'eksekutif';
+  roleLabel: string;
+  kecamatan?: string;
+  nip?: string;
+  jabatan?: string;
+}
+
+export const DEMO_USERS: AuthUser[] = [
+  {
+    id: 'user-admin',
+    username: 'admin',
+    name: 'Irfan Indra, S.Kom',
+    role: 'admin',
+    roleLabel: 'Admin Dinas PPPA-KB',
+    nip: '19850714 201001 1 008',
+    jabatan: 'Pranata Komputer / Pengelola Data KB'
+  },
+  {
+    id: 'user-plkb',
+    username: 'plkb',
+    name: 'Dra. Siti Rahayu',
+    role: 'plkb',
+    roleLabel: 'Koordinator Lapangan PLKB',
+    kecamatan: 'BOJONEGORO',
+    nip: '19890422 201402 2 003',
+    jabatan: 'Koordinator Balai Penyuluh KB Kec. Bojonegoro'
+  },
+  {
+    id: 'user-pimpinan',
+    username: 'pimpinan',
+    name: 'Drs. H. M. Supriyanto, M.Si',
+    role: 'eksekutif',
+    roleLabel: 'Kepala Dinas / Pimpinan',
+    nip: '19720315 199803 1 005',
+    jabatan: 'Kepala Dinas PPPA dan KB Kab. Bojonegoro'
+  }
+];

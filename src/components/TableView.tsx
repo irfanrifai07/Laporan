@@ -6,7 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Table as TableIcon, Search, Calendar, Download, X, 
-  Layers, RotateCcw, CalendarDays, TrendingUp, FileSpreadsheet
+  Layers, RotateCcw, TrendingUp, FileSpreadsheet
 } from 'lucide-react';
 import { 
   RawDataRow, 
@@ -59,10 +59,9 @@ export const TableView: React.FC<TableViewProps> = ({
   setActiveCategory,
   selectedMonth,
   setSelectedMonth,
-  onOpenEntrySidebar,
 }) => {
   // Mode tampilan: default 'month' sesuai tampilan tabel awal
-  const [tableMode, setTableMode] = useState<'year' | 'month'>('month');
+  const [tableMode] = useState<'year' | 'month'>('month');
 
   // Hanya SATU filter pencarian tunggal sesuai permintaan pengguna
   const [searchQuery, setSearchQuery] = useState('');
@@ -274,71 +273,6 @@ export const TableView: React.FC<TableViewProps> = ({
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('id-ID').format(Math.round(num));
-  };
-
-  // Export ke CSV
-  const handleExportCSV = () => {
-    if (tableMode === 'year') {
-      // Export 12 Bulan (Januari s/d Desember)
-      const headers = [
-        'No', 'Kecamatan', 'Metode', 'Target PPM',
-        ...MONTHS,
-        'Total Capaian', 'Prosentase (%)', 'Sisa Target'
-      ];
-      const rows: string[] = [headers.join(',')];
-
-      displayedYearlyRows.forEach((row, idx) => {
-        const line = [
-          row.isJumlah ? '"-"' : idx + 1,
-          `"${row.kecamatan}"`,
-          `"${row.category}"`,
-          row.ppm,
-          ...MONTHS.map(m => row.monthly[m] || 0),
-          row.totalCapaian,
-          row.percentage.toFixed(2),
-          row.sisa
-        ];
-        rows.push(line.join(','));
-      });
-
-      const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Tabel_KB_12_Bulan_Januari_s_d_Desember_${activeCategory}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else {
-      // Export Per Bulan
-      const headers = ['No', 'Kecamatan', 'Metode', 'Bulan', 'PPM (Target)', 'Bulan Lalu', 'Bulan Ini', 'Jumlah Capaian', 'Prosentase (%)', 'Sisa Target'];
-      const rows: string[] = [headers.join(',')];
-
-      displayedSingleMonthRows.forEach((row, idx) => {
-        const line = [
-          row.isJumlah ? '"-"' : idx + 1,
-          `"${row.kecamatan}"`,
-          `"${row.category}"`,
-          `"${selectedMonth}"`,
-          row.ppm,
-          row.blnLalu,
-          row.blnIni,
-          row.jumlah,
-          row.percentage.toFixed(2),
-          row.sisa
-        ];
-        rows.push(line.join(','));
-      });
-
-      const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Tabel_KB_${activeCategory}_${selectedMonth}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
   };
 
   // Export data tabel murni ke file Excel (.xlsx)

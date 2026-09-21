@@ -5,9 +5,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  X, Save, RotateCcw, CheckCircle2, ChevronRight, Layers, 
-  ShieldCheck, Clock, Calculator, ArrowRight, Download, 
-  HelpCircle, AlertCircle, FileSpreadsheet, Lock
+  X, Save, RotateCcw, CheckCircle2, Layers, 
+  ShieldCheck, Calculator, FileSpreadsheet, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -15,7 +14,7 @@ import {
   MONTHS, 
   METHOD_KEYS, 
   METHOD_DETAILS, 
-  ContraceptiveMethod, 
+  ContraceptiveMethod,
   AllMethodsEntry, 
   RawDataRow 
 } from '../types';
@@ -25,9 +24,15 @@ import {
   extractExistingValues, 
   applyMethodEntryToData, 
   saveLocalEntriesToStorage,
-  getLastSavedTimestamp,
   getPreviousMonth
 } from '../utils/dataManager';
+import { syncRowsToGoogleSheets } from '../utils/googleSheetsSync';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 interface EntrySidebarProps {
   isOpen: boolean;
@@ -36,6 +41,7 @@ interface EntrySidebarProps {
   onDataUpdated: (newData: RawDataRow[], savedKec: string, savedMonth: string) => void;
   defaultMonth?: string;
   defaultKecamatan?: string;
+  lockedKecamatan?: string;
 }
 
 export const EntrySidebar: React.FC<EntrySidebarProps> = ({
@@ -44,9 +50,11 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   currentData,
   onDataUpdated,
   defaultMonth = 'Februari',
-  defaultKecamatan = 'NGRAHO'
+  defaultKecamatan = 'NGRAHO',
+  lockedKecamatan
 }) => {
-  const [selectedKecamatan, setSelectedKecamatan] = useState(defaultKecamatan);
+  const [selectedKecamatan, setSelectedKecamatan] = useState(lockedKecamatan || defaultKecamatan);
+  const activeKecamatan = lockedKecamatan || selectedKecamatan;
   const [selectedBulan, setSelectedBulan] = useState(defaultMonth);
   const [entries, setEntries] = useState<AllMethodsEntry>(getInitialMethodEntry());
   const [activeTab, setActiveTab] = useState<'all' | ContraceptiveMethod>('all');
@@ -61,23 +69,27 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   useEffect(() => {
     if (isOpen) {
       if (defaultMonth) setSelectedBulan(defaultMonth);
-      if (defaultKecamatan) setSelectedKecamatan(defaultKecamatan);
+      if (lockedKecamatan) {
+        setSelectedKecamatan(lockedKecamatan);
+      } else if (defaultKecamatan) {
+        setSelectedKecamatan(defaultKecamatan);
+      }
     }
-  }, [isOpen, defaultMonth, defaultKecamatan]);
+  }, [isOpen, defaultMonth, defaultKecamatan, lockedKecamatan]);
 
   // Load existing values when kecamatan or month changes
   useEffect(() => {
     if (isOpen && currentData.length > 0) {
-      const targetKey = `${selectedKecamatan}_${selectedBulan}`;
+      const targetKey = `${activeKecamatan}_${selectedBulan}`;
       if (prevTargetRef.current !== targetKey) {
         prevTargetRef.current = targetKey;
-        const existing = extractExistingValues(currentData, selectedKecamatan, selectedBulan);
+        const existing = extractExistingValues(currentData, activeKecamatan, selectedBulan);
         setEntries(existing);
       }
     } else if (!isOpen) {
       prevTargetRef.current = '';
     }
-  }, [isOpen, selectedKecamatan, selectedBulan, currentData]);
+  }, [isOpen, activeKecamatan, selectedBulan, currentData]);
 
   // Handle single input change with REAL-TIME AUTO-SAVE (Hanya untuk Bln Lalu & Bln Ini; PPM resmi terkunci)
   const handleInputChange = (
@@ -86,7 +98,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
     value: string
   ) => {
     const numValue = Math.max(0, parseFloat(value) || 0);
-    const lockedPpm = getOfficialPpm(selectedKecamatan, method);
+    const lockedPpm = getOfficialPpm(activeKecamatan, method);
     const newEntries: AllMethodsEntry = {
       ...entries,
       [method]: {
@@ -100,13 +112,22 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
     // AUTO-SAVE OTOMATIS: langsung terapkan perubahan ke data & simpan permanen ke localStorage
     const updatedData = applyMethodEntryToData(
       currentData,
-      selectedKecamatan,
+      activeKecamatan,
       selectedBulan,
       newEntries
     );
 
     saveLocalEntriesToStorage(updatedData);
-    onDataUpdated(updatedData, selectedKecamatan, selectedBulan);
+    onDataUpdated(updatedData, activeKecamatan, selectedBulan);
+
+    // Sinkronisasi data bulan yang diubah ke spreadsheet di background
+    const rowsForSelectedMonth = updatedData.filter(r => 
+      r[0]?.toString().trim().toUpperCase() === activeKecamatan.toUpperCase() &&
+      r[8]?.toString().trim() === selectedBulan
+    );
+    if (rowsForSelectedMonth.length > 0) {
+      syncRowsToGoogleSheets(rowsForSelectedMonth, activeKecamatan, selectedBulan);
+    }
 
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -146,19 +167,28 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   const handleSave = () => {
     const updatedData = applyMethodEntryToData(
       currentData,
-      selectedKecamatan,
+      activeKecamatan,
       selectedBulan,
       entries
     );
 
     saveLocalEntriesToStorage(updatedData);
-    onDataUpdated(updatedData, selectedKecamatan, selectedBulan);
+    onDataUpdated(updatedData, activeKecamatan, selectedBulan);
+
+    // Sinkronisasi data bulan yang diubah ke spreadsheet
+    const rowsForSelectedMonth = updatedData.filter(r => 
+      r[0]?.toString().trim().toUpperCase() === activeKecamatan.toUpperCase() &&
+      r[8]?.toString().trim() === selectedBulan
+    );
+    if (rowsForSelectedMonth.length > 0) {
+      syncRowsToGoogleSheets(rowsForSelectedMonth, activeKecamatan, selectedBulan);
+    }
 
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     setLastSavedTime(timeStr);
 
-    setToastMessage(`Semua data untuk ${selectedKecamatan} (${selectedBulan}) tersimpan otomatis dan aman.`);
+    setToastMessage(`Semua data untuk ${activeKecamatan} (${selectedBulan}) tersimpan otomatis dan diperbarui di Spreadsheet.`);
     setShowSuccessToast(true);
     setTimeout(() => {
       setShowSuccessToast(false);
@@ -167,7 +197,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
 
   // Reset to current data
   const handleReset = () => {
-    const existing = extractExistingValues(currentData, selectedKecamatan, selectedBulan);
+    const existing = extractExistingValues(currentData, activeKecamatan, selectedBulan);
     setEntries(existing);
   };
 
@@ -258,20 +288,43 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                   </button>
                 </div>
 
+                {lockedKecamatan && (
+                  <div className="p-2.5 bg-amber-500/10 border border-amber-500/25 rounded-xl flex items-start space-x-2 text-[11px] text-amber-300">
+                    <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                    <span>
+                      Hak Akses Entri Terbatas: Anda login sebagai operator resmi <strong>Kecamatan {lockedKecamatan}</strong>. Seluruh entri dan penyimpanan data hanya berlaku untuk wilayah Anda.
+                    </span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">
-                      Kecamatan
-                    </label>
-                    <select
-                      value={selectedKecamatan}
-                      onChange={(e) => setSelectedKecamatan(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs font-semibold text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    >
-                      {KECAMATAN_LIST.map(kec => (
-                        <option key={kec} value={kec}>{kec}</option>
-                      ))}
-                    </select>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase">
+                        Kecamatan
+                      </label>
+                      {lockedKecamatan && (
+                        <span className="text-[9px] font-semibold text-amber-400 flex items-center">
+                          <Lock className="w-2.5 h-2.5 mr-0.5" /> Terkunci
+                        </span>
+                      )}
+                    </div>
+                    {lockedKecamatan ? (
+                      <div className="w-full bg-slate-950 border border-amber-500/40 rounded-lg px-3 py-2 text-xs font-bold text-amber-300 flex items-center justify-between shadow-inner">
+                        <span className="truncate">{lockedKecamatan}</span>
+                        <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0 ml-1.5" />
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedKecamatan}
+                        onChange={(e) => setSelectedKecamatan(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-xs font-semibold text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      >
+                        {KECAMATAN_LIST.map(kec => (
+                          <option key={kec} value={kec}>{kec}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div>
@@ -306,7 +359,6 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                 </button>
 
                 {METHOD_KEYS.map(key => {
-                  const meta = METHOD_DETAILS[key];
                   const isActive = activeTab === key;
                   return (
                     <button

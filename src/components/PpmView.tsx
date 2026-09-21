@@ -10,8 +10,7 @@ import {
 } from 'lucide-react';
 import { 
   OFFICIAL_PPM_LIST, 
-  TOTAL_BOJONEGORO_PPM, 
-  KecamatanPpmTarget 
+  TOTAL_BOJONEGORO_PPM 
 } from '../data/ppmData';
 
 interface PpmViewProps {

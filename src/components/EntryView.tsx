@@ -5,15 +5,16 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-  FileSpreadsheet, Plus, Download, RotateCcw, Search, 
-  Layers, Calendar, Edit3, X, AlertCircle
+  FileSpreadsheet, Plus, Search, 
+  Layers, Calendar, Edit3, X, AlertCircle, Lock, ShieldCheck
 } from 'lucide-react';
 import { 
   KECAMATAN_LIST, 
   MONTHS, 
   METHOD_KEYS, 
   METHOD_DETAILS, 
-  RawDataRow 
+  RawDataRow,
+  AuthUser
 } from '../types';
 import { getOfficialPpm } from '../data/ppmData';
 
@@ -25,6 +26,8 @@ interface EntryViewProps {
   setActiveCategory?: (category: string) => void;
   onOpenEntrySidebar: (kecamatan?: string) => void;
   onResetToApiData: () => void;
+  currentUser?: AuthUser | null;
+  lockedKecamatan?: string;
 }
 
 interface SingleMonthRow {
@@ -47,12 +50,19 @@ export const EntryView: React.FC<EntryViewProps> = ({
   setActiveCategory,
   onOpenEntrySidebar,
   onResetToApiData,
+  currentUser,
+  lockedKecamatan
 }) => {
   // Local fallback if setters are not provided by parent
   const [localCategory, setLocalCategory] = useState(activeCategory);
   const [localMonth, setLocalMonth] = useState(selectedMonth);
   const [searchQuery, setSearchQuery] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [onlyMyDistrict, setOnlyMyDistrict] = useState(false);
+
+  // Deteksi hak akses kecamatan
+  const activeLockKecamatan = lockedKecamatan || (currentUser?.role === 'plkb' ? currentUser?.kecamatan : undefined);
+  const isKecamatanUser = !!activeLockKecamatan;
 
   const currentCategory = activeCategory || localCategory;
   const currentMonth = selectedMonth || localMonth;
@@ -137,78 +147,86 @@ export const EntryView: React.FC<EntryViewProps> = ({
     };
   }, [singleMonthDataList, currentCategory]);
 
-  // Filter berdasarkan input pencarian
+  // Filter berdasarkan input pencarian dan opsi hanya wilayah sendiri
   const displayedRows = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return [...singleMonthDataList, totalRow];
+    let list = singleMonthDataList;
+    if (onlyMyDistrict && activeLockKecamatan) {
+      list = list.filter(r => r.kecamatan.toUpperCase() === activeLockKecamatan.toUpperCase());
+    }
 
-    const filtered = singleMonthDataList.filter(r => 
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return [...list, totalRow];
+
+    const filtered = list.filter(r => 
       r.kecamatan.toLowerCase().includes(q) ||
       r.category.toLowerCase().includes(q)
     );
     return [...filtered, totalRow];
-  }, [singleMonthDataList, totalRow, searchQuery]);
-
-  // Export CSV
-  const handleExportCSV = () => {
-    const headers = ['No', 'Kecamatan', 'Metode', 'Bulan', 'PPM (Target)', 'Bulan Lalu', 'Bulan Ini', 'Jumlah Capaian', 'Prosentase (%)', 'Sisa Target'];
-    const rows: string[] = [headers.join(',')];
-
-    displayedRows.forEach((row, idx) => {
-      const line = [
-        row.isJumlah ? '"-"' : idx + 1,
-        `"${row.kecamatan}"`,
-        `"${row.category}"`,
-        `"${currentMonth}"`,
-        row.ppm,
-        row.blnLalu,
-        row.blnIni,
-        row.jumlah,
-        row.percentage.toFixed(2),
-        row.sisa
-      ];
-      rows.push(line.join(','));
-    });
-
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Tabel_Entri_KB_${currentCategory}_${currentMonth}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  }, [singleMonthDataList, totalRow, searchQuery, onlyMyDistrict, activeLockKecamatan]);
 
   return (
     <div className="space-y-4">
       {/* Top Banner Manajemen Entri */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-850 to-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="space-y-1.5">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-lg bg-teal-500/20 text-teal-400 border border-teal-500/30">
-              <FileSpreadsheet className="w-5 h-5" />
+      {activeLockKecamatan ? (
+        <div className="bg-gradient-to-r from-teal-950/80 via-slate-850 to-slate-800 border border-teal-500/30 rounded-2xl p-5 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                <Lock className="w-5 h-5 text-teal-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-slate-100 uppercase tracking-tight flex items-center gap-2 flex-wrap">
+                  <span>Entri Capaian Kecamatan {activeLockKecamatan}</span>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/40">
+                    Hak Akses Wilayah
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-300 mt-0.5 max-w-2xl leading-relaxed">
+                  Anda login sebagai akun resmi <strong>Kecamatan {activeLockKecamatan}</strong>. Sesuai hak akses, Anda hanya berwenang mengentri data capaian untuk wilayah Anda. Kecamatan lainnya bersifat hanya-baca (<em>read-only</em>).
+                </p>
+              </div>
             </div>
-            <h2 className="text-base font-black text-slate-100 uppercase tracking-tight">
-              Manajemen Entri Data Metode Kontrasepsi
-            </h2>
           </div>
-          <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-            Pilih kecamatan untuk menginput capaian metode <strong className="text-slate-200">MOW, MOP, IUD, IMPLAN, SUNTIK, PIL, dan KONDOM</strong>. Perhitungan MKJP, NON MKJP, dan Total Semua Metode akan dihitung otomatis secara realtime.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto shrink-0 flex-wrap">
-          <button
-            type="button"
-            onClick={() => onOpenEntrySidebar()}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-xs shadow-lg shadow-teal-500/20 flex items-center justify-center transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Buka Sidebar Entri Data
-          </button>
+          <div className="flex items-center gap-3 w-full md:w-auto shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onOpenEntrySidebar(activeLockKecamatan)}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-teal-500/25 flex items-center justify-center transition-all cursor-pointer"
+            >
+              <Edit3 className="w-4 h-4 mr-2" />
+              Entri Data {activeLockKecamatan}
+            </button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-gradient-to-r from-slate-800 via-slate-850 to-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 rounded-lg bg-teal-500/20 text-teal-400 border border-teal-500/30">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <h2 className="text-base font-black text-slate-100 uppercase tracking-tight">
+                Manajemen Entri Data Metode Kontrasepsi
+              </h2>
+            </div>
+            <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
+              Pilih kecamatan untuk menginput capaian metode <strong className="text-slate-200">MOW, MOP, IUD, IMPLAN, SUNTIK, PIL, dan KONDOM</strong>. Perhitungan MKJP, NON MKJP, dan Total Semua Metode akan dihitung otomatis secara realtime.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onOpenEntrySidebar()}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-xs shadow-lg shadow-teal-500/20 flex items-center justify-center transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Buka Sidebar Entri Data
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Kartu Tabel Utama Entri Data (Tampilan Seperti Awal) */}
       <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
@@ -275,8 +293,8 @@ export const EntryView: React.FC<EntryViewProps> = ({
           </div>
         </div>
 
-        {/* SATU FILTER PENCARIAN TUNGGAL */}
-        <div className="p-4 sm:px-6 bg-slate-900/70 border-b border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* SATU FILTER PENCARIAN TUNGGAL & TOGGLE WILAYAH */}
+        <div className="p-4 sm:px-6 bg-slate-900/70 border-b border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="relative flex-1 max-w-lg">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
@@ -298,7 +316,35 @@ export const EntryView: React.FC<EntryViewProps> = ({
             )}
           </div>
 
-          <div className="flex items-center text-xs text-slate-400 gap-3 shrink-0">
+          <div className="flex items-center text-xs text-slate-400 gap-3 shrink-0 flex-wrap">
+            {activeLockKecamatan && (
+              <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setOnlyMyDistrict(false)}
+                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
+                    !onlyMyDistrict 
+                      ? 'bg-slate-700 text-teal-300 shadow-xs' 
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Semua Wilayah (28)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOnlyMyDistrict(true)}
+                  className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer flex items-center space-x-1 ${
+                    onlyMyDistrict 
+                      ? 'bg-teal-500 text-slate-950 shadow-xs font-black' 
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Lock className="w-3 h-3 mr-1" />
+                  <span>Hanya {activeLockKecamatan}</span>
+                </button>
+              </div>
+            )}
+
             <span>
               Menampilkan: <strong className="text-teal-400 font-bold">{displayedRows.length} baris</strong>
             </span>
@@ -353,6 +399,11 @@ export const EntryView: React.FC<EntryViewProps> = ({
             <tbody className="divide-y divide-slate-700/50">
               {displayedRows.map((row, idx) => {
                 const isTotalRow = row.isJumlah;
+                const isUserDistrict = Boolean(
+                  activeLockKecamatan && 
+                  row.kecamatan.toUpperCase().trim() === activeLockKecamatan.toUpperCase().trim()
+                );
+                const isLockedRow = isKecamatanUser && !isUserDistrict && !isTotalRow;
 
                 return (
                   <tr 
@@ -360,6 +411,8 @@ export const EntryView: React.FC<EntryViewProps> = ({
                     className={`transition-colors ${
                       isTotalRow 
                         ? 'bg-teal-500/10 font-bold border-t-2 border-slate-600 hover:bg-teal-500/15' 
+                        : isUserDistrict
+                        ? 'bg-teal-500/15 border-l-4 border-l-teal-400 font-semibold hover:bg-teal-500/20'
                         : 'hover:bg-slate-750/50'
                     }`}
                   >
@@ -368,7 +421,14 @@ export const EntryView: React.FC<EntryViewProps> = ({
                     </td>
 
                     <td className="px-4 py-3 text-xs font-bold text-slate-200">
-                      {row.kecamatan}
+                      <div className="flex items-center space-x-2">
+                        <span>{row.kecamatan}</span>
+                        {isUserDistrict && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-teal-500/25 text-teal-300 border border-teal-500/40 shrink-0">
+                            Wilayah Anda
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="px-4 py-3 text-center text-xs font-semibold text-slate-300">
@@ -418,15 +478,35 @@ export const EntryView: React.FC<EntryViewProps> = ({
 
                     <td className="px-4 py-3 text-center">
                       {!isTotalRow && (
-                        <button
-                          type="button"
-                          onClick={() => onOpenEntrySidebar(row.kecamatan)}
-                          className="inline-flex items-center px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500 hover:text-white text-teal-400 border border-teal-500/30 text-xs font-bold transition-all cursor-pointer shadow-xs"
-                          title={`Buka entri data lengkap untuk ${row.kecamatan}`}
-                        >
-                          <Edit3 className="w-3 h-3 mr-1" />
-                          <span>Entri</span>
-                        </button>
+                        isLockedRow ? (
+                          <div 
+                            className="inline-flex items-center px-2 py-1 rounded-lg bg-slate-800/80 text-slate-500 border border-slate-700/60 text-[11px] font-semibold cursor-not-allowed select-none"
+                            title={`Akses Terkunci: Akun Anda hanya berwenang mengentri data Kecamatan ${activeLockKecamatan}`}
+                          >
+                            <Lock className="w-3 h-3 mr-1 text-slate-500 shrink-0" />
+                            <span>Terkunci</span>
+                          </div>
+                        ) : isUserDistrict ? (
+                          <button
+                            type="button"
+                            onClick={() => onOpenEntrySidebar(row.kecamatan)}
+                            className="inline-flex items-center px-3 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-md shadow-teal-500/20"
+                            title={`Buka form entri data capaian Kecamatan ${row.kecamatan}`}
+                          >
+                            <Edit3 className="w-3.5 h-3.5 mr-1" />
+                            <span>Entri Data</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onOpenEntrySidebar(row.kecamatan)}
+                            className="inline-flex items-center px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500 hover:text-white text-teal-400 border border-teal-500/30 text-xs font-bold transition-all cursor-pointer shadow-xs"
+                            title={`Buka entri data lengkap untuk ${row.kecamatan}`}
+                          >
+                            <Edit3 className="w-3 h-3 mr-1" />
+                            <span>Entri</span>
+                          </button>
+                        )
                       )}
                     </td>
                   </tr>

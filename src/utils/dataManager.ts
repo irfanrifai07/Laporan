@@ -5,7 +5,6 @@
 
 import { 
   RawDataRow, 
-  ContraceptiveMethod, 
   AllMethodsEntry, 
   METHOD_KEYS, 
   MKJP_METHODS, 
@@ -13,7 +12,7 @@ import {
   KECAMATAN_LIST,
   MONTHS
 } from '../types';
-import { getOfficialPpm, RAW_PPM_DATA, TOTAL_BOJONEGORO_PPM } from '../data/ppmData';
+import { getOfficialPpm } from '../data/ppmData';
 
 export const LOCAL_STORAGE_KEY = 'laporan_kb_local_entries_v3';
 export const LOCAL_STORAGE_TIMESTAMP_KEY = 'laporan_kb_last_saved_at';

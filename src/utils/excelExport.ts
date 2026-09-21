@@ -60,7 +60,6 @@ export function exportTableToExcel({
   let sumBlnLalu = 0;
   let sumBlnIni = 0;
   let sumJumlah = 0;
-  let sumSisa = 0;
 
   // Process 28 kecamatan
   KECAMATAN_LIST.forEach((kec, idx) => {

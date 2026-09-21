@@ -5,14 +5,14 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Label
 } from 'recharts';
 import { 
-  LayoutDashboard, Table as TableIcon, Search, Menu, X, ChevronRight, 
-  ShieldCheck, Clock, Layers, Filter, ArrowUp, ArrowDown, Globe,
+  LayoutDashboard, Table as TableIcon, Search, Menu, X, 
+  Layers, Globe,
   Activity, ArrowDownRight, ArrowUpRight, RefreshCw, AlertCircle,
-  FileSpreadsheet, Plus, Edit3, CheckCircle2, RotateCcw, Target, Download
+  FileSpreadsheet, CheckCircle2, RotateCcw, Target, Download, Calendar, LogOut, KeyRound
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -23,7 +23,7 @@ import {
   MONTHS, 
   METHOD_KEYS, 
   METHOD_DETAILS,
-  KECAMATAN_LIST 
+  AuthUser
 } from './types';
 import { exportTableToExcel } from './utils/excelExport';
 import { getOfficialPpm } from './data/ppmData';
@@ -39,6 +39,9 @@ import { EntrySidebar } from './components/EntrySidebar';
 import { EntryView } from './components/EntryView';
 import { TableView } from './components/TableView';
 import { PpmView } from './components/PpmView';
+import { LoginView } from './components/LoginView';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
+import logoBojonegoro from './assets/logo_bojonegoro.svg';
 
 // --- Utilities ---
 function cn(...inputs: ClassValue[]) {
@@ -70,6 +73,32 @@ export default function App() {
   const [entryTargetKecamatan, setEntryTargetKecamatan] = useState<string>('NGRAHO');
   const [notification, setNotification] = useState<string | null>(null);
   const [showEmptyConfirmModal, setShowEmptyConfirmModal] = useState(false);
+
+  // User Authentication State
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('laporan_kb_auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.kecamatan) {
+      setEntryTargetKecamatan(currentUser.kecamatan);
+    }
+  }, [currentUser]);
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('laporan_kb_auth_user');
+    } catch {
+      // ignore
+    }
+    setCurrentUser(null);
+  };
 
   // Auto-sync any data change to localStorage continuously
   useEffect(() => {
@@ -180,7 +209,10 @@ export default function App() {
   };
 
   const handleOpenEntrySidebar = (kecamatan?: string) => {
-    if (kecamatan) {
+    if (currentUser?.role === 'plkb' && currentUser.kecamatan) {
+      // Pastikan akun kecamatan hanya membuka form untuk kecamatannya sendiri
+      setEntryTargetKecamatan(currentUser.kecamatan);
+    } else if (kecamatan) {
       setEntryTargetKecamatan(kecamatan);
     }
     setIsEntrySidebarOpen(true);
@@ -265,13 +297,23 @@ export default function App() {
       .sort((a, b) => b.percentage - a.percentage);
   }, [filteredData, searchQuery]);
 
-  const tableData = useMemo(() => {
-    return filteredData.filter(d => d.kecamatan.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [filteredData, searchQuery]);
-
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('id-ID').format(Math.round(num));
   };
+
+  // Autentikasi Pengguna: Jika belum login, tampilkan halaman Login
+  if (!currentUser) {
+    return (
+      <LoginView 
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          if (user.kecamatan) {
+            setEntryTargetKecamatan(user.kecamatan);
+          }
+        }} 
+      />
+    );
+  }
 
   if (isLoading && data.length === 0) {
     return (
@@ -311,20 +353,22 @@ export default function App() {
         animate={{ width: sidebarOpen ? 260 : 80 }}
         className="bg-slate-800 border-r border-slate-700 flex flex-col z-20"
       >
-        <div className="h-16 flex items-center px-6 border-bottom border-slate-700 bg-teal-500 text-white shrink-0">
-          <Layers className="w-6 h-6 mr-3" />
-          {sidebarOpen && <span className="font-bold tracking-tight">LAPORAN BULANAN</span>}
-        </div>
-
-        <div className="p-4 shrink-0">
-          {sidebarOpen && <label className="text-[10px] uppercase tracking-widest text-slate-400 mb-2 block font-bold">Periode</label>}
-          <select 
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          >
-            {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+        <div className="h-16 flex items-center px-4 border-b border-slate-700 bg-slate-850 text-white shrink-0 gap-3">
+          <img 
+            src={logoBojonegoro} 
+            alt="Logo Pemkab Bojonegoro" 
+            className="w-8 h-10 object-contain shrink-0 drop-shadow" 
+          />
+          {sidebarOpen && (
+            <div className="overflow-hidden">
+              <span className="font-black text-xs tracking-wider text-slate-100 block uppercase truncate">
+                KAB. BOJONEGORO
+              </span>
+              <span className="text-[10px] font-bold text-teal-400 block tracking-tight truncate">
+                Dinas PPPA dan KB
+              </span>
+            </div>
+          )}
         </div>
 
         <nav className="flex-1 overflow-y-auto py-2 custom-scrollbar">
@@ -438,6 +482,65 @@ export default function App() {
             </button>
           </div>
         </nav>
+
+        {/* User Profile & Logout at bottom of sidebar */}
+        <div className="p-3 border-t border-slate-700/80 bg-slate-850/90 shrink-0">
+          <div className={cn("flex items-center", sidebarOpen ? "justify-between" : "justify-center")}>
+            <div className="flex items-center space-x-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center shrink-0 font-black text-xs shadow-inner">
+                {currentUser.name.charAt(0)}
+              </div>
+              {sidebarOpen && (
+                <div className="truncate">
+                  <div className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</div>
+                  <div className="text-[10px] text-teal-400 font-semibold truncate">
+                    {currentUser.roleLabel} {currentUser.kecamatan ? `• ${currentUser.kecamatan}` : ''}
+                  </div>
+                </div>
+              )}
+            </div>
+            {sidebarOpen && (
+              <div className="flex items-center space-x-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsChangePasswordOpen(true)}
+                  title="Ubah Kata Sandi (Password)"
+                  className="p-1.5 hover:bg-teal-500/20 text-slate-400 hover:text-teal-300 rounded-lg transition-colors cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Keluar dari Akun (Logout)"
+                  className="p-1.5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+          {!sidebarOpen && (
+            <div className="mt-2 space-y-1">
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordOpen(true)}
+                title="Ubah Kata Sandi (Password)"
+                className="w-full flex justify-center p-1.5 hover:bg-teal-500/20 text-slate-400 hover:text-teal-300 rounded-lg transition-colors cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Keluar dari Akun (Logout)"
+                className="w-full flex justify-center p-1.5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
       </motion.aside>
 
       {/* Main Content */}
@@ -469,6 +572,24 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Periode Selector di Header Utama */}
+            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
+              <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Periode:</span>
+              <select
+                id="header-period-select"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
+              >
+                {MONTHS.map(m => (
+                  <option key={m} value={m} className="bg-slate-800 text-slate-200">
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <button 
               onClick={() => fetchData()}
               disabled={isLoading || isRefreshing}
@@ -484,8 +605,34 @@ export default function App() {
                 placeholder="Cari kecamatan..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-32 sm:w-48 transition-all focus:w-56"
+                className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-28 sm:w-44 transition-all focus:w-52"
               />
+            </div>
+
+            {/* User Profile & Quick Actions in Header */}
+            <div className="flex items-center space-x-2 pl-2 border-l border-slate-700">
+              <div className="hidden lg:flex flex-col text-right">
+                <span className="text-xs font-bold text-slate-200 truncate max-w-[130px]">{currentUser.name}</span>
+                <span className="text-[10px] text-teal-400 font-semibold">{currentUser.roleLabel}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordOpen(true)}
+                title="Ubah Kata Sandi (Password)"
+                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-teal-500/20 text-slate-300 hover:text-teal-300 border border-slate-700 hover:border-teal-500/30 text-xs font-bold transition-all cursor-pointer shadow-xs"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-teal-400" />
+                <span className="hidden sm:inline text-[11px]">Ubah Sandi</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Keluar dari Akun (Logout)"
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 text-xs font-bold transition-all cursor-pointer shadow-xs"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline text-[11px]">Keluar</span>
+              </button>
             </div>
           </div>
         </header>
@@ -544,12 +691,38 @@ export default function App() {
                   {/* Main Bar Chart */}
                   <div className="lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">Grafik Capaian Per Kecamatan</h3>
-                      <div className="flex items-center gap-2">
-                        <span className="flex items-center text-[10px] text-emerald-400 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500 mr-1"></div> {'>'}80%</span>
-                        <span className="flex items-center text-[10px] text-amber-400 font-bold"><div className="w-2 h-2 rounded-full bg-amber-500 mr-1"></div> 50-80%</span>
-                        <span className="flex items-center text-[10px] text-rose-400 font-bold"><div className="w-2 h-2 rounded-full bg-rose-500 mr-1"></div> {'<'}50%</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">Grafik Capaian Per Kecamatan</h3>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/30">
+                          {selectedMonth}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {/* Pilihan Periode / Bulan di dalam Dashboard */}
+                        <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
+                          <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Periode:</span>
+                          <select
+                            id="dashboard-period-select"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
+                          >
+                            {MONTHS.map(m => (
+                              <option key={m} value={m} className="bg-slate-800 text-slate-200">
+                                {m}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center text-[10px] text-emerald-400 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500 mr-1"></div> {'>'}80%</span>
+                          <span className="flex items-center text-[10px] text-amber-400 font-bold"><div className="w-2 h-2 rounded-full bg-amber-500 mr-1"></div> 50-80%</span>
+                          <span className="flex items-center text-[10px] text-rose-400 font-bold"><div className="w-2 h-2 rounded-full bg-rose-500 mr-1"></div> {'<'}50%</span>
+                        </div>
                       </div>
                     </div>
                     <div className="h-[350px] w-full">
@@ -694,8 +867,6 @@ export default function App() {
                       );
                       const officialTargetPpm = getOfficialPpm('JUMLAH', key);
                       const mPpm = officialTargetPpm > 0 ? officialTargetPpm : rows.reduce((s, r) => s + (parseFloat(String(r[1])) || 0), 0);
-                      const mBlnLalu = rows.reduce((s, r) => s + (parseFloat(String(r[2])) || 0), 0);
-                      const mBlnIni = rows.reduce((s, r) => s + (parseFloat(String(r[3])) || 0), 0);
                       const mCapaian = rows.reduce((s, r) => s + (parseFloat(String(r[4])) || 0), 0);
                       const mPerc = mPpm > 0 ? (mCapaian / mPpm) * 100 : 0;
 
@@ -796,6 +967,8 @@ export default function App() {
                   setSelectedMonth={setSelectedMonth}
                   onOpenEntrySidebar={handleOpenEntrySidebar}
                   onResetToApiData={handleResetToApiData}
+                  currentUser={currentUser}
+                  lockedKecamatan={currentUser?.role === 'plkb' ? currentUser.kecamatan : undefined}
                 />
               </motion.div>
             )}
@@ -820,7 +993,21 @@ export default function App() {
         onDataUpdated={handleDataSaved}
         defaultMonth={selectedMonth}
         defaultKecamatan={entryTargetKecamatan}
+        lockedKecamatan={currentUser?.role === 'plkb' ? currentUser?.kecamatan : undefined}
       />
+
+      {/* Modal Ubah Kata Sandi (Hanya Bisa Merubah Password) */}
+      {currentUser && (
+        <ChangePasswordModal
+          isOpen={isChangePasswordOpen}
+          onClose={() => setIsChangePasswordOpen(false)}
+          currentUser={currentUser}
+          onSuccessNotification={(msg) => {
+            setNotification(msg);
+            setTimeout(() => setNotification(null), 4000);
+          }}
+        />
+      )}
 
       {/* Modal Konfirmasi Kosongkan Data */}
       {showEmptyConfirmModal && (
