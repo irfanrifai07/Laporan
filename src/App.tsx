@@ -774,7 +774,7 @@ export default function App() {
               >
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                   {/* Main Bar Chart */}
-                  <div className="lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl relative overflow-hidden">
+                  <div className="lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl relative overflow-hidden min-w-0">
                     <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                       <div className="flex items-center space-x-2">
@@ -792,8 +792,8 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                    <div className="h-[280px] sm:h-[350px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-[280px] sm:h-[350px] w-full min-w-0">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 40 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                           <XAxis 
@@ -830,10 +830,10 @@ export default function App() {
                   </div>
 
                   {/* Summary Pie Chart */}
-                  <div className="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl flex flex-col items-center">
+                  <div className="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl flex flex-col items-center min-w-0">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 w-full text-center border-b border-slate-700 pb-3 mb-6 decoration-teal-500 decoration-2 underline-offset-8">Sisa dan Capaian</h3>
-                    <div className="relative w-full h-[180px] mb-8">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <div className="relative w-full h-[180px] mb-8 min-w-0">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <PieChart>
                           <Pie
                             data={[
