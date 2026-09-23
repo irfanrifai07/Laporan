@@ -198,13 +198,32 @@ export default function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [showEmptyConfirmModal, setShowEmptyConfirmModal] = useState(false);
 
+  // Akun default Administrator Kabupaten agar saat dibuka pertama kali baik di komputer maupun di HP langsung tampil Dashboard yang sama
+  const DEFAULT_APP_USER: AuthUser = {
+    id: 'user-admin',
+    username: 'ADMIN',
+    name: 'Administrator Kabupaten',
+    role: 'admin',
+    roleLabel: 'Administrator Kabupaten',
+    jabatan: 'Dinas PPPA dan KB Kab. Bojonegoro'
+  };
+
   // User Authentication State
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     try {
+      const isLoggedOut = localStorage.getItem('laporan_kb_logged_out');
+      if (isLoggedOut === 'true') {
+        return null;
+      }
       const saved = localStorage.getItem('laporan_kb_auth_user');
-      return saved ? JSON.parse(saved) : null;
+      if (saved) {
+        return JSON.parse(saved);
+      }
+      // Simpan session default sehingga tampilan di komputer dan HP selalu sama saat dibuka
+      localStorage.setItem('laporan_kb_auth_user', JSON.stringify(DEFAULT_APP_USER));
+      return DEFAULT_APP_USER;
     } catch {
-      return null;
+      return DEFAULT_APP_USER;
     }
   });
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -218,6 +237,7 @@ export default function App() {
   const handleLogout = () => {
     try {
       localStorage.removeItem('laporan_kb_auth_user');
+      localStorage.setItem('laporan_kb_logged_out', 'true');
     } catch {
       // ignore
     }
@@ -436,6 +456,12 @@ export default function App() {
     return (
       <LoginView 
         onLoginSuccess={(user) => {
+          try {
+            localStorage.removeItem('laporan_kb_logged_out');
+            localStorage.setItem('laporan_kb_auth_user', JSON.stringify(user));
+          } catch {
+            // ignore
+          }
           setCurrentUser(user);
           if (user.kecamatan) {
             setEntryTargetKecamatan(user.kecamatan);
@@ -651,16 +677,17 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative min-w-0 w-full">
-        <header className="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6 shrink-0 z-10">
-          <div className="flex items-center space-x-4">
+        <header className="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-3 sm:px-6 shrink-0 z-10 gap-2">
+          <div className="flex items-center space-x-2.5 sm:space-x-4 min-w-0">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 cursor-pointer"
+              className="p-1.5 sm:p-2 hover:bg-slate-700 rounded-lg text-slate-400 cursor-pointer shrink-0"
+              title="Menu Navigasi"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="flex flex-col">
-              <h1 className="text-sm font-bold text-teal-400 uppercase tracking-tighter">
+            <div className="flex flex-col min-w-0">
+              <h1 className="text-xs sm:text-sm font-bold text-teal-400 uppercase tracking-tighter truncate">
                 {currentView === AppView.DASHBOARD 
                   ? 'Dashboard Visual Capaian' 
                   : currentView === AppView.TABLE 
@@ -669,7 +696,7 @@ export default function App() {
                   ? 'Data Target PPM Resmi Bojonegoro'
                   : 'Manajemen Entri Data Metode KB'}
               </h1>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+              <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate">
                 {currentView === AppView.PPM
                   ? 'Target Resmi 28 Kecamatan'
                   : `${activeCategory} \u2022 ${selectedMonth}`}
@@ -677,11 +704,11 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Periode Selector, Refresh, dan Search hanya ditampilkan di Dashboard */}
             {currentView === AppView.DASHBOARD && (
               <>
-                <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
+                <div className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
                   <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Periode:</span>
                   <select
@@ -702,19 +729,19 @@ export default function App() {
                   onClick={() => fetchData()}
                   disabled={isLoading || isRefreshing}
                   title="Segarkan data dari Google Sheets"
-                  className="p-2 hover:bg-slate-700 text-slate-400 hover:text-teal-400 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                  className="p-1.5 sm:p-2 hover:bg-slate-700 text-slate-400 hover:text-teal-400 rounded-lg transition-colors cursor-pointer disabled:opacity-50 shrink-0"
                 >
                   <RefreshCw className={cn("w-4 h-4", (isLoading || isRefreshing) && "animate-spin text-teal-400")} />
                 </button>
 
                 <div className="relative group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 sm:w-4 h-3.5 sm:h-4 text-slate-500" />
                   <input 
                     type="text" 
-                    placeholder="Cari kecamatan..."
+                    placeholder="Cari..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-28 sm:w-44 transition-all focus:w-52"
+                    className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-8 sm:pl-10 pr-3 sm:pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-20 sm:w-44 transition-all focus:w-28 sm:focus:w-52"
                   />
                 </div>
               </>
@@ -735,7 +762,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth bg-slate-900/50 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 pb-24 lg:pb-6 scroll-smooth bg-slate-900/50 custom-scrollbar">
           {/* Stats Summary - Visible on Dashboard view */}
           {currentView === AppView.DASHBOARD && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1023,8 +1050,67 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        {/* Footer Info */}
-        <footer className="h-8 bg-slate-800 border-t border-slate-700 px-6 flex items-center justify-between text-[10px] font-bold text-slate-500 shrink-0">
+        {/* Mobile Bottom Navigation Bar (Menjadikan menu utama langsung terlihat dan dapat diakses di HP sama seperti di komputer) */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-850/95 backdrop-blur-md border-t border-slate-700/80 px-2 py-1.5 flex items-center justify-around shadow-2xl">
+          <button
+            type="button"
+            onClick={() => handleNavigateView(AppView.DASHBOARD)}
+            className={cn(
+              "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
+              currentView === AppView.DASHBOARD
+                ? "text-teal-400 bg-teal-500/15 font-bold"
+                : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            <LayoutDashboard className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] tracking-tight">Dashboard</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleNavigateView(AppView.TABLE)}
+            className={cn(
+              "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
+              currentView === AppView.TABLE
+                ? "text-teal-400 bg-teal-500/15 font-bold"
+                : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            <TableIcon className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] tracking-tight">Data Tabel</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleNavigateView(AppView.ENTRY)}
+            className={cn(
+              "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
+              currentView === AppView.ENTRY
+                ? "text-teal-400 bg-teal-500/15 font-bold"
+                : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            <FileSpreadsheet className="w-5 h-5 mb-0.5 text-teal-400" />
+            <span className="text-[10px] tracking-tight">Entri Data</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleNavigateView(AppView.PPM)}
+            className={cn(
+              "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
+              currentView === AppView.PPM
+                ? "text-teal-400 bg-teal-500/15 font-bold"
+                : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            <Layers className="w-5 h-5 mb-0.5" />
+            <span className="text-[10px] tracking-tight">Data PPM</span>
+          </button>
+        </nav>
+
+        {/* Footer Info (Desktop) */}
+        <footer className="h-8 bg-slate-800 border-t border-slate-700 px-6 hidden lg:flex items-center justify-between text-[10px] font-bold text-slate-500 shrink-0">
           <div className="flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
             <span className="text-emerald-400">Penyimpanan Otomatis Aktif (Auto-Save)</span>
