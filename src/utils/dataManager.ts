@@ -16,6 +16,74 @@ import { getOfficialPpm } from '../data/ppmData';
 
 export const LOCAL_STORAGE_KEY = 'laporan_kb_local_entries_v3';
 export const LOCAL_STORAGE_TIMESTAMP_KEY = 'laporan_kb_last_saved_at';
+export const LOCAL_STORAGE_ENTERED_MONTHS = 'laporan_kb_entered_months_v3';
+
+/**
+ * Mendapatkan daftar bulan yang sudah dientri datanya oleh pengguna atau dari database.
+ */
+export function getEnteredMonths(sourceData?: RawDataRow[]): string[] {
+  const enteredSet = new Set<string>();
+
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_ENTERED_MONTHS);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        parsed.forEach(m => {
+          if (m && typeof m === 'string') enteredSet.add(m.trim());
+        });
+      }
+    }
+  } catch {}
+
+  // Pindai juga dataset: jika ada baris dengan blnIni > 0, bulan tersebut dianggap sudah dientri
+  if (Array.isArray(sourceData)) {
+    sourceData.forEach(r => {
+      const blnIni = parseFloat(String(r[3])) || 0;
+      const m = r[8]?.toString().trim();
+      if (blnIni > 0 && m) {
+        enteredSet.add(m);
+      }
+    });
+  }
+
+  return Array.from(enteredSet);
+}
+
+/**
+ * Memeriksa apakah bulan tertentu sudah pernah dientri data layanannya.
+ * Jika belum dientri, data yang ditampilkan harus kosong (0 capaian).
+ */
+export function isMonthEntered(month: string, sourceData?: RawDataRow[]): boolean {
+  if (!month) return false;
+  const cleanM = month.trim();
+  const enteredList = getEnteredMonths(sourceData);
+  return enteredList.includes(cleanM);
+}
+
+/**
+ * Tandai suatu bulan sebagai sudah dientri
+ */
+export function markMonthAsEntered(month: string): void {
+  if (!month) return;
+  try {
+    const current = getEnteredMonths();
+    const clean = month.trim();
+    if (!current.includes(clean)) {
+      current.push(clean);
+      localStorage.setItem(LOCAL_STORAGE_ENTERED_MONTHS, JSON.stringify(current));
+    }
+  } catch {}
+}
+
+/**
+ * Reset penanda bulan dientri
+ */
+export function resetEnteredMonths(): void {
+  try {
+    localStorage.removeItem(LOCAL_STORAGE_ENTERED_MONTHS);
+  } catch {}
+}
 
 /**
  * Mendapatkan nama bulan sebelumnya dari urutan 12 bulan (Januari s/d Desember).
@@ -91,6 +159,9 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
   const prevMonthJumlahMap = new Map<string, number>();
 
   MONTHS.forEach((month, monthIndex) => {
+    // Periksa apakah bulan ini sudah dientri data oleh pengguna atau memiliki data aktif
+    const isThisMonthEntered = isMonthEntered(month, data);
+
     // 1. Proses 28 Kecamatan
     const monthKecRows: { [cat: string]: { blnLalu: number; blnIni: number } } = {};
     allCategories.forEach(c => {
@@ -108,29 +179,36 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
         // Target PPM resmi dari dokumen Data PPM
         const ppm = getOfficialPpm(kec, cat);
 
-        // Data Bulan Lalu otomatis diambil dari Jumlah Capaian bulan sebelumnya
         let blnLalu = 0;
-        if (monthIndex === 0) {
-          // Bulan pertama (Januari): gunakan saved.blnLalu (jika ada carry-over awal tahun) atau 0
-          blnLalu = saved?.blnLalu || 0;
-        } else {
-          // Bulan Februari s/d Desember: otomatis diambil dari Jumlah Capaian bulan sebelumnya
-          const prevJumlah = prevMonthJumlahMap.get(`${cleanKec}_${cleanCat}`);
-          if (prevJumlah !== undefined && prevJumlah > 0) {
-            blnLalu = prevJumlah;
-          } else {
-            // Jika bulan sebelumnya belum ada data capaian tercatat, pertahankan data blnLalu yang ada di spreadsheet/data tersimpan
+        let blnIni = 0;
+        let jumlah = 0;
+
+        if (isThisMonthEntered) {
+          // Hanya hitung angka jika bulan ini memang sudah dientri!
+          if (monthIndex === 0) {
             blnLalu = saved?.blnLalu || 0;
+          } else {
+            const prevJumlah = prevMonthJumlahMap.get(`${cleanKec}_${cleanCat}`);
+            if (prevJumlah !== undefined && prevJumlah > 0) {
+              blnLalu = prevJumlah;
+            } else {
+              blnLalu = saved?.blnLalu || 0;
+            }
           }
+
+          blnIni = saved?.blnIni || 0;
+          jumlah = blnLalu + blnIni;
+          // Simpan jumlah capaian bulan ini untuk acuan bulan berikutnya jika bulan berikutnya dientri
+          prevMonthJumlahMap.set(`${cleanKec}_${cleanCat}`, jumlah);
+        } else {
+          // Bulan ini BELUM DIENTRI: semua angka capaian harus KOSONG (0)!
+          blnLalu = 0;
+          blnIni = 0;
+          jumlah = 0;
         }
 
-        const blnIni = saved?.blnIni || 0;
-        const jumlah = blnLalu + blnIni;
         const percentage = ppm > 0 ? (jumlah / ppm) * 100 : 0;
         const sisa = ppm - jumlah;
-
-        // Simpan jumlah capaian bulan ini untuk menjadi acuan bulan berikutnya
-        prevMonthJumlahMap.set(`${cleanKec}_${cleanCat}`, jumlah);
 
         monthKecRows[cat].blnLalu += blnLalu;
         monthKecRows[cat].blnIni += blnIni;
@@ -151,7 +229,9 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
       const mkjpJumlah = mkjpBlnLalu + mkjpBlnIni;
       const mkjpPercentage = mkjpPpm > 0 ? (mkjpJumlah / mkjpPpm) * 100 : 0;
       const mkjpSisa = mkjpPpm - mkjpJumlah;
-      prevMonthJumlahMap.set(`${cleanKec}_MKJP`, mkjpJumlah);
+      if (isThisMonthEntered) {
+        prevMonthJumlahMap.set(`${cleanKec}_MKJP`, mkjpJumlah);
+      }
       monthKecRows['MKJP'].blnLalu += mkjpBlnLalu;
       monthKecRows['MKJP'].blnIni += mkjpBlnIni;
       synced.push([kec, mkjpPpm, mkjpBlnLalu, mkjpBlnIni, mkjpJumlah, mkjpPercentage, mkjpSisa, 'MKJP', month]);
@@ -169,7 +249,9 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
       const nonMkjpJumlah = nonMkjpBlnLalu + nonMkjpBlnIni;
       const nonMkjpPercentage = nonMkjpPpm > 0 ? (nonMkjpJumlah / nonMkjpPpm) * 100 : 0;
       const nonMkjpSisa = nonMkjpPpm - nonMkjpJumlah;
-      prevMonthJumlahMap.set(`${cleanKec}_NON MKJP`, nonMkjpJumlah);
+      if (isThisMonthEntered) {
+        prevMonthJumlahMap.set(`${cleanKec}_NON MKJP`, nonMkjpJumlah);
+      }
       monthKecRows['NON MKJP'].blnLalu += nonMkjpBlnLalu;
       monthKecRows['NON MKJP'].blnIni += nonMkjpBlnIni;
       synced.push([kec, nonMkjpPpm, nonMkjpBlnLalu, nonMkjpBlnIni, nonMkjpJumlah, nonMkjpPercentage, nonMkjpSisa, 'NON MKJP', month]);
@@ -181,7 +263,9 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
       const semuaJumlah = semuaBlnLalu + semuaBlnIni;
       const semuaPercentage = semuaPpm > 0 ? (semuaJumlah / semuaPpm) * 100 : 0;
       const semuaSisa = semuaPpm - semuaJumlah;
-      prevMonthJumlahMap.set(`${cleanKec}_SEMUA METODE`, semuaJumlah);
+      if (isThisMonthEntered) {
+        prevMonthJumlahMap.set(`${cleanKec}_SEMUA METODE`, semuaJumlah);
+      }
       monthKecRows['SEMUA METODE'].blnLalu += semuaBlnLalu;
       monthKecRows['SEMUA METODE'].blnIni += semuaBlnIni;
       synced.push([kec, semuaPpm, semuaBlnLalu, semuaBlnIni, semuaJumlah, semuaPercentage, semuaSisa, 'SEMUA METODE', month]);
@@ -218,6 +302,7 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
  * keeping official PPM target and setting sisa equal to ppm.
  */
 export function emptyEnteredAchievements(data: RawDataRow[]): RawDataRow[] {
+  resetEnteredMonths();
   if (!Array.isArray(data) || data.length === 0) {
     return generateMasterDatasetFromOfficialPpm();
   }
@@ -450,14 +535,23 @@ export function applyMethodEntryToData(
     });
   };
 
+  // Tandai bulan aktif ini sebagai sudah dientri
+  markMonthAsEntered(bulan);
+
   // Hitung agregasi untuk bulan aktif
   recalculateSummariesForMonth(kecamatan, bulan);
 
-  // 2. CASCADE FORWARD: Otomatis teruskan capaian kumulatif ke semua bulan berikutnya (Februari s/d Desember)
+  // 2. CASCADE FORWARD: HANYA teruskan jika bulan berikutnya MEMANG SUDAH DIENTRI
+  // Bulan yang belum dientri harus tetap kosong (0 capaian) dan tidak boleh diisi capaian kumulatif
   if (monthIndex >= 0 && monthIndex < MONTHS.length - 1) {
     for (let i = monthIndex + 1; i < MONTHS.length; i++) {
       const mTarget = MONTHS[i];
       const prevMTarget = MONTHS[i - 1];
+
+      // Jika bulan target belum dientri, jangan salin data kumulatif ke bulan tersebut!
+      if (!isMonthEntered(mTarget, updatedData)) {
+        break;
+      }
 
       METHOD_KEYS.forEach(m => {
         const prevRow = updatedData.find(r => 

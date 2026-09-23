@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { 
-  Lock, User, Eye, EyeOff, ShieldCheck, 
+  Lock, User, Eye, EyeOff, 
   ChevronRight, AlertCircle
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -79,11 +79,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               Dinas Pemberdayaan Perempuan, Perlindungan Anak dan KB
             </span>
           </div>
-        </div>
-
-        <div className="hidden sm:flex items-center space-x-2 text-[11px] text-slate-400 bg-slate-800/80 border border-slate-700/70 px-3 py-1.5 rounded-full">
-          <ShieldCheck className="w-4 h-4 text-teal-400" />
-          <span>Sistem Informasi Capaian KB Terintegrasi</span>
         </div>
       </header>
 

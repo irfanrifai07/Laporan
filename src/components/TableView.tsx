@@ -17,6 +17,7 @@ import {
 } from '../types';
 import { exportTableToExcel } from '../utils/excelExport';
 import { getOfficialPpm } from '../data/ppmData';
+import { isMonthEntered } from '../utils/dataManager';
 
 interface TableViewProps {
   data: RawDataRow[];
@@ -59,6 +60,7 @@ export const TableView: React.FC<TableViewProps> = ({
   setActiveCategory,
   selectedMonth,
   setSelectedMonth,
+  onOpenEntrySidebar,
 }) => {
   // Mode tampilan: default 'month' sesuai tampilan tabel awal
   const [tableMode] = useState<'year' | 'month'>('month');
@@ -177,6 +179,11 @@ export const TableView: React.FC<TableViewProps> = ({
     };
   }, [yearlyDataList]);
 
+  // Cek apakah bulan yang dipilih sudah dientri atau belum
+  const isSelectedMonthEntered = useMemo(() => {
+    return isMonthEntered(selectedMonth, data);
+  }, [selectedMonth, data]);
+
   // 2. DATA PER BULAN SPESIFIK (Single Month View)
   const singleMonthDataList = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) return [];
@@ -203,11 +210,13 @@ export const TableView: React.FC<TableViewProps> = ({
           ? getOfficialPpm('JUMLAH', activeCategory)
           : getOfficialPpm(kecName, activeCategory);
         const ppm = officialTarget > 0 ? officialTarget : (parseFloat(String(row[1])) || 0);
-        const blnLalu = parseFloat(String(row[2])) || 0;
-        const blnIni = parseFloat(String(row[3])) || 0;
-        const jumlah = parseFloat(String(row[4])) || 0;
+        
+        // Jika bulan belum dientri, capaian harus kosong (0)
+        const blnLalu = isSelectedMonthEntered ? (parseFloat(String(row[2])) || 0) : 0;
+        const blnIni = isSelectedMonthEntered ? (parseFloat(String(row[3])) || 0) : 0;
+        const jumlah = isSelectedMonthEntered ? (parseFloat(String(row[4])) || 0) : 0;
         const sisa = ppm - jumlah;
-        const percentage = ppm > 0 ? (jumlah / ppm) * 100 : 0;
+        const percentage = ppm > 0 && isSelectedMonthEntered ? (jumlah / ppm) * 100 : 0;
 
         return {
           kecamatan: isJumlah ? 'JUMLAH KABUPATEN' : kecName,
@@ -221,7 +230,7 @@ export const TableView: React.FC<TableViewProps> = ({
           isJumlah
         };
       });
-  }, [data, activeCategory, selectedMonth]);
+  }, [data, activeCategory, selectedMonth, isSelectedMonthEntered]);
 
   const displayedSingleMonthRows = useMemo(() => {
     if (!searchQuery.trim()) return singleMonthDataList;
@@ -240,11 +249,17 @@ export const TableView: React.FC<TableViewProps> = ({
 
     if (totalRow) {
       const ppm = officialKabPpm > 0 ? officialKabPpm : totalRow.ppm;
-      const sisa = ppm - totalRow.jumlah;
-      const percentage = ppm > 0 ? (totalRow.jumlah / ppm) * 100 : 0;
+      const blnLalu = isSelectedMonthEntered ? totalRow.blnLalu : 0;
+      const blnIni = isSelectedMonthEntered ? totalRow.blnIni : 0;
+      const jumlah = isSelectedMonthEntered ? totalRow.jumlah : 0;
+      const sisa = ppm - jumlah;
+      const percentage = ppm > 0 && isSelectedMonthEntered ? (jumlah / ppm) * 100 : 0;
       return {
         ...totalRow,
         ppm,
+        blnLalu,
+        blnIni,
+        jumlah,
         sisa,
         percentage
       };
@@ -252,11 +267,11 @@ export const TableView: React.FC<TableViewProps> = ({
 
     const districtRows = singleMonthDataList.filter(d => !d.isJumlah);
     const ppm = officialKabPpm > 0 ? officialKabPpm : districtRows.reduce((s, r) => s + r.ppm, 0);
-    const blnLalu = districtRows.reduce((s, r) => s + r.blnLalu, 0);
-    const blnIni = districtRows.reduce((s, r) => s + r.blnIni, 0);
-    const jumlah = districtRows.reduce((s, r) => s + r.jumlah, 0);
+    const blnLalu = isSelectedMonthEntered ? districtRows.reduce((s, r) => s + r.blnLalu, 0) : 0;
+    const blnIni = isSelectedMonthEntered ? districtRows.reduce((s, r) => s + r.blnIni, 0) : 0;
+    const jumlah = isSelectedMonthEntered ? districtRows.reduce((s, r) => s + r.jumlah, 0) : 0;
     const sisa = ppm - jumlah;
-    const percentage = ppm > 0 ? (jumlah / ppm) * 100 : 0;
+    const percentage = ppm > 0 && isSelectedMonthEntered ? (jumlah / ppm) * 100 : 0;
 
     return {
       kecamatan: 'JUMLAH KABUPATEN',
@@ -269,7 +284,7 @@ export const TableView: React.FC<TableViewProps> = ({
       category: activeCategory,
       isJumlah: true
     };
-  }, [singleMonthDataList, activeCategory]);
+  }, [singleMonthDataList, activeCategory, isSelectedMonthEntered]);
 
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat('id-ID').format(Math.round(num));

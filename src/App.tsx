@@ -33,7 +33,8 @@ import {
   clearLocalStorage,
   emptyEnteredAchievements,
   syncDataWithOfficialPpm,
-  generateMasterDatasetFromOfficialPpm
+  generateMasterDatasetFromOfficialPpm,
+  isMonthEntered
 } from './utils/dataManager';
 import { EntrySidebar } from './components/EntrySidebar';
 import { EntryView } from './components/EntryView';
@@ -42,6 +43,98 @@ import { PpmView } from './components/PpmView';
 import { LoginView } from './components/LoginView';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import logoBojonegoro from './assets/logo_bojonegoro.svg';
+
+interface DashboardCategoryItem {
+  id: string;
+  label: string;
+  categoryTag: string;
+  fullName: string;
+  badgeColor: string;
+  groupKey: string;
+}
+
+const DASHBOARD_CATEGORIES: DashboardCategoryItem[] = [
+  {
+    id: 'Semua Metode',
+    label: 'SEMUA',
+    categoryTag: 'TOTAL',
+    fullName: 'Semua Metode KB',
+    badgeColor: 'bg-teal-500/20 text-teal-300 border-teal-500/40',
+    groupKey: 'SEMUA METODE'
+  },
+  {
+    id: 'MKJP',
+    label: 'MKJP',
+    categoryTag: 'AGREGASI',
+    fullName: 'Metode Jangka Panjang',
+    badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+    groupKey: 'MKJP'
+  },
+  {
+    id: 'NON MKJP',
+    label: 'NON MKJP',
+    categoryTag: 'AGREGASI',
+    fullName: 'Non Jangka Panjang',
+    badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+    groupKey: 'NON MKJP'
+  },
+  {
+    id: 'MOW',
+    label: 'MOW',
+    categoryTag: 'MKJP',
+    fullName: 'Metode Operasi Wanita',
+    badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+    groupKey: 'MOW'
+  },
+  {
+    id: 'MOP',
+    label: 'MOP',
+    categoryTag: 'MKJP',
+    fullName: 'Metode Operasi Pria',
+    badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    groupKey: 'MOP'
+  },
+  {
+    id: 'IUD',
+    label: 'IUD',
+    categoryTag: 'MKJP',
+    fullName: 'Spiral (IUD)',
+    badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+    groupKey: 'IUD'
+  },
+  {
+    id: 'IMPLAN',
+    label: 'IMPLAN',
+    categoryTag: 'MKJP',
+    fullName: 'Implan (Susuk KB)',
+    badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    groupKey: 'IMPLAN'
+  },
+  {
+    id: 'SUNTIK',
+    label: 'SUNTIK',
+    categoryTag: 'NON MKJP',
+    fullName: 'KB Suntik',
+    badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+    groupKey: 'SUNTIK'
+  },
+  {
+    id: 'PIL',
+    label: 'PIL',
+    categoryTag: 'NON MKJP',
+    fullName: 'Pil Kontrasepsi',
+    badgeColor: 'bg-pink-500/10 text-pink-400 border-pink-500/30',
+    groupKey: 'PIL'
+  },
+  {
+    id: 'KONDOM',
+    label: 'KONDOM',
+    categoryTag: 'NON MKJP',
+    fullName: 'Kondom Pria',
+    badgeColor: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
+    groupKey: 'KONDOM'
+  }
+];
 
 // --- Utilities ---
 function cn(...inputs: ClassValue[]) {
@@ -64,9 +157,40 @@ export default function App() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('Semua Metode');
   const [selectedMonth, setSelectedMonth] = useState('Februari');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(() => {
+    return typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
+
+  // Monitor window resize to maintain optimal responsive layout on computer and mobile
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleNavigateView = (view: AppView) => {
+    setCurrentView(view);
+    setIsEntrySidebarOpen(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  };
 
   // Entry Sidebar State
   const [isEntrySidebarOpen, setIsEntrySidebarOpen] = useState(false);
@@ -258,25 +382,30 @@ export default function App() {
     });
   }, [data, activeCategory, selectedMonth]);
 
+  const isSelectedMonthEntered = useMemo(() => {
+    return isMonthEntered(selectedMonth, data);
+  }, [selectedMonth, data]);
+
   const statsData = useMemo(() => {
     const list = filteredData.filter(d => !d.isJumlah);
-    if (!list.length) return { highest: null, lowest: null, total: null };
+    if (!list.length) return { highest: null, lowest: null, total: null, isEmpty: true };
 
+    const hasAnyCapaian = isSelectedMonthEntered && list.some(d => d.jumlah > 0 || d.blnIni > 0);
     const sorted = [...list].sort((a, b) => b.percentage - a.percentage);
     const totalRow = filteredData.find(d => d.isJumlah);
 
     // Target PPM resmi dari Data PPM sebagai acuan
     const officialTotalPpm = getOfficialPpm('JUMLAH', activeCategory);
     const totalPpm = officialTotalPpm > 0 ? officialTotalPpm : (totalRow?.ppm || 0);
-    const totalCapaian = totalRow?.jumlah ?? list.reduce((s, r) => s + r.jumlah, 0);
-    const totalPercentage = totalPpm > 0 ? (totalCapaian / totalPpm) * 100 : 0;
+    const totalCapaian = hasAnyCapaian ? (totalRow?.jumlah ?? list.reduce((s, r) => s + r.jumlah, 0)) : 0;
+    const totalPercentage = totalPpm > 0 && hasAnyCapaian ? (totalCapaian / totalPpm) * 100 : 0;
     const totalSisa = totalPpm - totalCapaian;
 
     const aggregatedTotal = {
       kecamatan: 'JUMLAH (KABUPATEN BOJONEGORO)',
       ppm: totalPpm,
-      blnLalu: totalRow?.blnLalu ?? list.reduce((s, r) => s + r.blnLalu, 0),
-      blnIni: totalRow?.blnIni ?? list.reduce((s, r) => s + r.blnIni, 0),
+      blnLalu: hasAnyCapaian ? (totalRow?.blnLalu ?? list.reduce((s, r) => s + r.blnLalu, 0)) : 0,
+      blnIni: hasAnyCapaian ? (totalRow?.blnIni ?? list.reduce((s, r) => s + r.blnIni, 0)) : 0,
       jumlah: totalCapaian,
       percentage: totalPercentage,
       sisa: totalSisa,
@@ -284,11 +413,12 @@ export default function App() {
     };
 
     return {
-      highest: sorted[0],
-      lowest: sorted[sorted.length - 1],
-      total: aggregatedTotal
+      highest: hasAnyCapaian ? sorted[0] : { kecamatan: '-', percentage: 0 },
+      lowest: hasAnyCapaian ? sorted[sorted.length - 1] : { kecamatan: '-', percentage: 0 },
+      total: aggregatedTotal,
+      isEmpty: !hasAnyCapaian
     };
-  }, [filteredData, activeCategory]);
+  }, [filteredData, activeCategory, isSelectedMonthEntered]);
 
   const chartData = useMemo(() => {
     return filteredData
@@ -347,133 +477,109 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-900 font-sans text-slate-100 overflow-hidden">
-      {/* Sidebar */}
-      <motion.aside 
-        initial={false}
-        animate={{ width: sidebarOpen ? 260 : 80 }}
-        className="bg-slate-800 border-r border-slate-700 flex flex-col z-20"
-      >
-        <div className="h-16 flex items-center px-4 border-b border-slate-700 bg-slate-850 text-white shrink-0 gap-3">
-          <img 
-            src={logoBojonegoro} 
-            alt="Logo Pemkab Bojonegoro" 
-            className="w-8 h-10 object-contain shrink-0 drop-shadow" 
+      {/* Mobile Drawer Backdrop */}
+      <AnimatePresence>
+        {isMobile && sidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-40 lg:hidden cursor-pointer"
           />
-          {sidebarOpen && (
-            <div className="overflow-hidden">
-              <span className="font-black text-xs tracking-wider text-slate-100 block uppercase truncate">
-                KAB. BOJONEGORO
-              </span>
-              <span className="text-[10px] font-bold text-teal-400 block tracking-tight truncate">
-                Dinas PPPA dan KB
-              </span>
-            </div>
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar */}
+      <aside 
+        className={cn(
+          "bg-slate-800 border-r border-slate-700 flex flex-col transition-all duration-300",
+          isMobile
+            ? "fixed inset-y-0 left-0 z-50 w-72 shadow-2xl"
+            : "relative z-20 shrink-0",
+          isMobile && !sidebarOpen && "-translate-x-full pointer-events-none"
+        )}
+        style={{
+          width: !isMobile ? (sidebarOpen ? 260 : 80) : undefined
+        }}
+      >
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-700 bg-slate-850 text-white shrink-0 gap-3">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <img 
+              src={logoBojonegoro} 
+              alt="Logo Pemkab Bojonegoro" 
+              className="w-8 h-10 object-contain shrink-0 drop-shadow" 
+            />
+            {(sidebarOpen || isMobile) && (
+              <div className="overflow-hidden">
+                <span className="font-black text-xs tracking-wider text-slate-100 block uppercase truncate">
+                  KAB. BOJONEGORO
+                </span>
+                <span className="text-[10px] font-bold text-teal-400 block tracking-tight truncate">
+                  Dinas PPPA dan KB
+                </span>
+              </div>
+            )}
+          </div>
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/60 lg:hidden cursor-pointer"
+              title="Tutup Menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
           )}
         </div>
 
         <nav className="flex-1 overflow-y-auto py-2 custom-scrollbar">
           <div className="px-4 py-2">
-            {sidebarOpen && <label className="text-[10px] uppercase tracking-widest text-slate-500 block mb-2 px-2 font-bold">MENU UTAMA</label>}
+            {(sidebarOpen || isMobile) && <label className="text-[10px] uppercase tracking-widest text-slate-500 block mb-2 px-2 font-bold">MENU UTAMA</label>}
             <button 
-              onClick={() => {
-                setCurrentView(AppView.DASHBOARD);
-                setIsEntrySidebarOpen(false);
-              }}
+              onClick={() => handleNavigateView(AppView.DASHBOARD)}
               className={cn(
                 "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
                 currentView === AppView.DASHBOARD ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
               )}
             >
               <LayoutDashboard className="w-5 h-5 shrink-0" />
-              {sidebarOpen && <span className="ml-3 text-xs font-semibold">Dashboard</span>}
+              {(sidebarOpen || isMobile) && <span className="ml-3 text-xs font-semibold">Dashboard</span>}
             </button>
-            <div className="mb-1 space-y-1">
-              <button 
-                onClick={() => {
-                  setCurrentView(AppView.TABLE);
-                  setIsEntrySidebarOpen(false);
-                }}
-                className={cn(
-                  "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors cursor-pointer",
-                  currentView === AppView.TABLE ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
-                )}
-              >
-                <TableIcon className="w-5 h-5 shrink-0" />
-                {sidebarOpen && <span className="ml-3 text-xs font-semibold">Data Tabel</span>}
-              </button>
 
-              {/* Tombol Download Excel Khusus Data Tabel di Sidebar */}
-              {sidebarOpen ? (
-                <div className="pl-3 pr-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      exportTableToExcel({
-                        data,
-                        selectedMonth,
-                        activeCategory
-                      });
-                    }}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition-all shadow-xs group cursor-pointer"
-                    title={`Download data tabel (${activeCategory} - ${selectedMonth}) saja ke format file Excel (.xlsx)`}
-                  >
-                    <span className="flex items-center gap-1.5 truncate">
-                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
-                      <span className="truncate">Download Excel</span>
-                    </span>
-                    <Download className="w-3 h-3 text-emerald-400 shrink-0 opacity-80 group-hover:opacity-100" />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex justify-center pt-0.5">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      exportTableToExcel({
-                        data,
-                        selectedMonth,
-                        activeCategory
-                      });
-                    }}
-                    className="p-1.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 transition-colors cursor-pointer"
-                    title={`Download Tabel Excel (.xlsx) - ${activeCategory}`}
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
             <button 
-              onClick={() => {
-                setCurrentView(AppView.ENTRY);
-                setIsEntrySidebarOpen(false);
-              }}
+              onClick={() => handleNavigateView(AppView.TABLE)}
+              className={cn(
+                "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
+                currentView === AppView.TABLE ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
+              )}
+            >
+              <TableIcon className="w-5 h-5 shrink-0" />
+              {(sidebarOpen || isMobile) && <span className="ml-3 text-xs font-semibold">Data Tabel</span>}
+            </button>
+
+            <button 
+              onClick={() => handleNavigateView(AppView.ENTRY)}
               className={cn(
                 "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
                 currentView === AppView.ENTRY ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
               )}
             >
               <FileSpreadsheet className="w-5 h-5 shrink-0 text-teal-400" />
-              {sidebarOpen && (
+              {(sidebarOpen || isMobile) && (
                 <div className="ml-3 flex items-center justify-between flex-1">
                   <span className="text-xs font-semibold">Entri Data</span>
                 </div>
               )}
             </button>
             <button 
-              onClick={() => {
-                setCurrentView(AppView.PPM);
-                setIsEntrySidebarOpen(false);
-              }}
+              onClick={() => handleNavigateView(AppView.PPM)}
               className={cn(
                 "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-2 cursor-pointer",
                 currentView === AppView.PPM ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
               )}
             >
               <Target className="w-5 h-5 shrink-0 text-teal-400" />
-              {sidebarOpen && (
+              {(sidebarOpen || isMobile) && (
                 <div className="ml-3 flex items-center justify-between flex-1">
                   <span className="text-xs font-semibold">Data PPM</span>
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">Target</span>
@@ -485,12 +591,12 @@ export default function App() {
 
         {/* User Profile & Logout at bottom of sidebar */}
         <div className="p-3 border-t border-slate-700/80 bg-slate-850/90 shrink-0">
-          <div className={cn("flex items-center", sidebarOpen ? "justify-between" : "justify-center")}>
+          <div className={cn("flex items-center", (sidebarOpen || isMobile) ? "justify-between" : "justify-center")}>
             <div className="flex items-center space-x-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center shrink-0 font-black text-xs shadow-inner">
                 {currentUser.name.charAt(0)}
               </div>
-              {sidebarOpen && (
+              {(sidebarOpen || isMobile) && (
                 <div className="truncate">
                   <div className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</div>
                   <div className="text-[10px] text-teal-400 font-semibold truncate">
@@ -499,7 +605,7 @@ export default function App() {
                 </div>
               )}
             </div>
-            {sidebarOpen && (
+            {(sidebarOpen || isMobile) && (
               <div className="flex items-center space-x-1 shrink-0">
                 <button
                   type="button"
@@ -520,7 +626,7 @@ export default function App() {
               </div>
             )}
           </div>
-          {!sidebarOpen && (
+          {!sidebarOpen && !isMobile && (
             <div className="mt-2 space-y-1">
               <button
                 type="button"
@@ -541,10 +647,10 @@ export default function App() {
             </div>
           )}
         </div>
-      </motion.aside>
+      </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className="flex-1 flex flex-col overflow-hidden relative min-w-0 w-full">
         <header className="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-6 shrink-0 z-10">
           <div className="flex items-center space-x-4">
             <button 
@@ -572,68 +678,47 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Periode Selector di Header Utama */}
-            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
-              <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Periode:</span>
-              <select
-                id="header-period-select"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
-              >
-                {MONTHS.map(m => (
-                  <option key={m} value={m} className="bg-slate-800 text-slate-200">
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Periode Selector, Refresh, dan Search hanya ditampilkan di Dashboard */}
+            {currentView === AppView.DASHBOARD && (
+              <>
+                <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
+                  <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Periode:</span>
+                  <select
+                    id="header-period-select"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
+                  >
+                    {MONTHS.map(m => (
+                      <option key={m} value={m} className="bg-slate-800 text-slate-200">
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <button 
-              onClick={() => fetchData()}
-              disabled={isLoading || isRefreshing}
-              title="Segarkan data dari Google Sheets"
-              className="p-2 hover:bg-slate-700 text-slate-400 hover:text-teal-400 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={cn("w-4 h-4", (isLoading || isRefreshing) && "animate-spin text-teal-400")} />
-            </button>
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input 
-                type="text" 
-                placeholder="Cari kecamatan..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-28 sm:w-44 transition-all focus:w-52"
-              />
-            </div>
+                <button 
+                  onClick={() => fetchData()}
+                  disabled={isLoading || isRefreshing}
+                  title="Segarkan data dari Google Sheets"
+                  className="p-2 hover:bg-slate-700 text-slate-400 hover:text-teal-400 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("w-4 h-4", (isLoading || isRefreshing) && "animate-spin text-teal-400")} />
+                </button>
 
-            {/* User Profile & Quick Actions in Header */}
-            <div className="flex items-center space-x-2 pl-2 border-l border-slate-700">
-              <div className="hidden lg:flex flex-col text-right">
-                <span className="text-xs font-bold text-slate-200 truncate max-w-[130px]">{currentUser.name}</span>
-                <span className="text-[10px] text-teal-400 font-semibold">{currentUser.roleLabel}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsChangePasswordOpen(true)}
-                title="Ubah Kata Sandi (Password)"
-                className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-teal-500/20 text-slate-300 hover:text-teal-300 border border-slate-700 hover:border-teal-500/30 text-xs font-bold transition-all cursor-pointer shadow-xs"
-              >
-                <KeyRound className="w-3.5 h-3.5 text-teal-400" />
-                <span className="hidden sm:inline text-[11px]">Ubah Sandi</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                title="Keluar dari Akun (Logout)"
-                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 text-xs font-bold transition-all cursor-pointer shadow-xs"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline text-[11px]">Keluar</span>
-              </button>
-            </div>
+                <div className="relative group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input 
+                    type="text" 
+                    placeholder="Cari kecamatan..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-28 sm:w-44 transition-all focus:w-52"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </header>
 
@@ -656,22 +741,22 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <StatCard 
                 label="Capaian Tertinggi" 
-                name={statsData.highest?.kecamatan || '-'}
-                value={statsData.highest?.percentage || 0}
+                name={statsData.isEmpty ? '-' : (statsData.highest?.kecamatan || '-')}
+                value={statsData.isEmpty ? 0 : (statsData.highest?.percentage || 0)}
                 icon={ArrowUpRight}
                 color="emerald"
               />
               <StatCard 
                 label="Capaian Terendah" 
-                name={statsData.lowest?.kecamatan || '-'}
-                value={statsData.lowest?.percentage || 0}
+                name={statsData.isEmpty ? '-' : (statsData.lowest?.kecamatan || '-')}
+                value={statsData.isEmpty ? 0 : (statsData.lowest?.percentage || 0)}
                 icon={ArrowDownRight}
                 color="rose"
               />
               <StatCard 
                 label="Total Kabupaten" 
                 name="AKUMULASI"
-                value={statsData.total?.percentage || 0}
+                value={statsData.isEmpty ? 0 : (statsData.total?.percentage || 0)}
                 icon={Globe}
                 color="sky"
               />
@@ -700,24 +785,6 @@ export default function App() {
                       </div>
 
                       <div className="flex items-center gap-3 flex-wrap">
-                        {/* Pilihan Periode / Bulan di dalam Dashboard */}
-                        <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
-                          <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Periode:</span>
-                          <select
-                            id="dashboard-period-select"
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
-                          >
-                            {MONTHS.map(m => (
-                              <option key={m} value={m} className="bg-slate-800 text-slate-200">
-                                {m}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
                         <div className="flex items-center gap-2">
                           <span className="flex items-center text-[10px] text-emerald-400 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500 mr-1"></div> {'>'}80%</span>
                           <span className="flex items-center text-[10px] text-amber-400 font-bold"><div className="w-2 h-2 rounded-full bg-amber-500 mr-1"></div> 50-80%</span>
@@ -725,7 +792,7 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                    <div className="h-[350px] w-full">
+                    <div className="h-[280px] sm:h-[350px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 40 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
@@ -812,7 +879,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Panel Metode Kontrasepsi di dalam Dashboard (Sesuai Permintaan) */}
+                {/* Panel Metode Kontrasepsi di dalam Dashboard */}
                 <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 sm:p-6 shadow-xl space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/60 pb-4">
                     <div className="flex items-center space-x-3">
@@ -829,68 +896,49 @@ export default function App() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-400">
-                          Pilih metode kontrasepsi untuk memfilter visualisasi grafik capaian dan analisis spesifik di atas
+                          Pilih jenis alokon atau kelompok agregasi di bawah untuk memfilter visualisasi grafik capaian dan data analisis di atas
                         </p>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {['Semua Metode', 'MKJP', 'NON MKJP'].map(cat => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setActiveCategory(cat)}
-                          className={cn(
-                            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                            activeCategory === cat 
-                              ? "bg-teal-500 text-white shadow-md shadow-teal-500/20 ring-1 ring-teal-400" 
-                              : "bg-slate-900/60 hover:bg-slate-750 text-slate-300 border border-slate-700"
-                          )}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
-                  {/* Grid 7 Alokon */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-                    {METHOD_KEYS.map(key => {
-                      const meta = METHOD_DETAILS[key];
-                      const isSelected = activeCategory.toUpperCase().trim() === key.toUpperCase().trim();
+                  {/* Grid Seluruh Alokon & Kelompok Agregasi (Semua Metode, MKJP, NON MKJP & 7 Alokon) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {DASHBOARD_CATEGORIES.map(item => {
+                      const isSelected = activeCategory.toUpperCase().trim() === item.id.toUpperCase().trim();
 
-                      // Filter data per metode dan bulan
+                      // Filter data per metode/kelompok dan bulan
                       const rows = data.filter(r => 
                         !r[0]?.toString().toUpperCase().includes('JUMLAH') &&
-                        r[7]?.toString().toUpperCase().trim() === key &&
+                        r[7]?.toString().toUpperCase().trim() === item.groupKey &&
                         r[8]?.toString().trim() === selectedMonth
                       );
-                      const officialTargetPpm = getOfficialPpm('JUMLAH', key);
+                      const officialTargetPpm = getOfficialPpm('JUMLAH', item.groupKey);
                       const mPpm = officialTargetPpm > 0 ? officialTargetPpm : rows.reduce((s, r) => s + (parseFloat(String(r[1])) || 0), 0);
                       const mCapaian = rows.reduce((s, r) => s + (parseFloat(String(r[4])) || 0), 0);
                       const mPerc = mPpm > 0 ? (mCapaian / mPpm) * 100 : 0;
 
                       return (
                         <button
-                          key={key}
+                          key={item.id}
                           type="button"
-                          onClick={() => setActiveCategory(key)}
+                          onClick={() => setActiveCategory(item.id)}
                           className={cn(
-                            "p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between group",
+                            "p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between group relative",
                             isSelected 
-                              ? "bg-teal-500/15 border-teal-500 ring-2 ring-teal-500/30 shadow-lg shadow-teal-500/10" 
+                              ? "bg-teal-500/15 border-teal-400 ring-2 ring-teal-500/40 shadow-lg shadow-teal-500/15" 
                               : "bg-slate-900/50 hover:bg-slate-750 border-slate-700 hover:border-slate-600"
                           )}
                         >
                           <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded border", meta.badgeColor)}>
-                                {meta.label}
+                            <div className="flex items-center justify-between mb-1.5 gap-1">
+                              <span className={cn("text-[10px] font-black px-1.5 py-0.5 rounded border tracking-tight", item.badgeColor)}>
+                                {item.label}
                               </span>
-                              <span className="text-[9px] font-bold text-slate-500 uppercase">{meta.category}</span>
+                              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tight">{item.categoryTag}</span>
                             </div>
                             <span className="text-xs font-bold text-slate-200 block truncate group-hover:text-teal-300">
-                              {meta.fullName}
+                              {item.fullName}
                             </span>
                           </div>
 

@@ -184,15 +184,8 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
       syncRowsToGoogleSheets(rowsForSelectedMonth, activeKecamatan, selectedBulan);
     }
 
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    setLastSavedTime(timeStr);
-
-    setToastMessage(`Semua data untuk ${activeKecamatan} (${selectedBulan}) tersimpan otomatis dan diperbarui di Spreadsheet.`);
-    setShowSuccessToast(true);
-    setTimeout(() => {
-      setShowSuccessToast(false);
-    }, 3500);
+    // Langsung menutup sidebar setelah data disimpan
+    onClose();
   };
 
   // Reset to current data
@@ -209,23 +202,23 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          {/* Backdrop for mobile & click-away */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-hidden">
+          {/* Backdrop for click-away */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.5 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/70 z-40 lg:hidden backdrop-blur-xs"
+            className="fixed inset-0 bg-black/80 backdrop-blur-xs z-40 transition-opacity"
           />
 
-          {/* Sidebar Drawer Container */}
+          {/* Pop-up Modal Container */}
           <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-            className="fixed top-0 right-0 h-full w-full sm:w-[480px] lg:w-[540px] bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col overflow-hidden text-slate-100"
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 280 }}
+            className="relative z-50 w-full max-w-4xl max-h-[90vh] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100"
           >
             {/* Header */}
             <div className="p-4 sm:px-6 bg-slate-800 border-b border-slate-700 flex items-center justify-between shrink-0">
@@ -235,8 +228,8 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h2 className="text-sm font-bold text-slate-100 uppercase tracking-tight">
-                      Sidebar Entri Data Metode KB
+                    <h2 className="text-sm sm:text-base font-bold text-slate-100 uppercase tracking-tight">
+                      Pop-up Entri Data Metode KB
                     </h2>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-black text-emerald-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />
@@ -251,7 +244,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
               <button
                 onClick={onClose}
                 className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-700/80 transition-colors cursor-pointer"
-                title="Tutup Panel"
+                title="Tutup Pop-up"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -389,7 +382,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
               </div>
 
               {/* Input Forms for Methods */}
-              <div className="space-y-3">
+              <div className={activeTab === 'all' ? "grid grid-cols-1 sm:grid-cols-2 gap-3.5" : "space-y-3"}>
                 {METHOD_KEYS.map(methodKey => {
                   if (activeTab !== 'all' && activeTab !== methodKey) return null;
 
@@ -598,7 +591,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
               </div>
             </div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );

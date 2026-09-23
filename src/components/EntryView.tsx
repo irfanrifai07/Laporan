@@ -222,7 +222,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-xs shadow-lg shadow-teal-500/20 flex items-center justify-center transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Buka Sidebar Entri Data
+              Buka Pop-up Entri Data
             </button>
           </div>
         </div>
