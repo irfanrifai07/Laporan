@@ -4,6 +4,7 @@
  */
 
 import { AuthUser } from '../types';
+import { syncPasswordToFirebase } from './firebaseSync';
 
 export interface OfficialAccount {
   username: string;
@@ -150,6 +151,7 @@ export function changePassword(
     const customMap = getCustomPasswords();
     customMap[normUser] = newPass;
     localStorage.setItem(STORAGE_KEY_PASSWORDS, JSON.stringify(customMap));
+    syncPasswordToFirebase(normUser, newPass).catch(() => {});
     return { success: true };
   } catch {
     return { success: false, error: 'Gagal menyimpan perubahan kata sandi ke penyimpanan lokal.' };

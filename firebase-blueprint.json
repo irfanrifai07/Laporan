@@ -1,0 +1,199 @@
+{
+  "entities": {
+    "KbEntry": {
+      "title": "KbEntry",
+      "description": "Real-time contraceptive service achievement entry for a specific subdistrict (Kecamatan) and month (Bulan) in Kabupaten Bojonegoro.",
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": "string",
+          "description": "Application namespace identifier for query enforcement.",
+          "enum": ["bojonegoro-kb-v1"],
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "kecamatan": {
+          "type": "string",
+          "description": "Official subdistrict name in Kabupaten Bojonegoro.",
+          "enum": [
+            "NGRAHO", "TAMBAKREJO", "NGAMBON", "NGASEM", "BUBULAN", "DANDER",
+            "SUGIHWARAS", "KEDUNGADEM", "KEPOHBARU", "BAURENO", "KANOR", "SUMBEREJO",
+            "BALEN", "KAPAS", "BOJONEGORO", "KALITIDU", "MALO", "PURWOSARI",
+            "PADANGAN", "KASIMAN", "TEMAYANG", "MARGOMULYO", "TRUCUK", "SUKOSEWU",
+            "KEDEWAN", "GONDANG", "SEKAR", "GAYAM"
+          ],
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Z ]+$"
+        },
+        "bulan": {
+          "type": "string",
+          "description": "Reporting month name in Indonesian.",
+          "enum": [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+          ],
+          "minLength": 1,
+          "maxLength": 20,
+          "pattern": "^[a-zA-Z]+$"
+        },
+        "MOW_lalu": {
+          "type": "number",
+          "description": "Previous month cumulative achievement for MOW."
+        },
+        "MOW_ini": {
+          "type": "number",
+          "description": "Current month achievement for MOW."
+        },
+        "MOP_lalu": {
+          "type": "number",
+          "description": "Previous month cumulative achievement for MOP."
+        },
+        "MOP_ini": {
+          "type": "number",
+          "description": "Current month achievement for MOP."
+        },
+        "IUD_lalu": {
+          "type": "number",
+          "description": "Previous month cumulative achievement for IUD."
+        },
+        "IUD_ini": {
+          "type": "number",
+          "description": "Current month achievement for IUD."
+        },
+        "IMPLAN_lalu": {
+          "type": "number",
+          "description": "Previous month cumulative achievement for IMPLAN."
+        },
+        "IMPLAN_ini": {
+          "type": "number",
+          "description": "Current month achievement for IMPLAN."
+        },
+        "SUNTIK_lalu": {
+          "type": "number",
+          "description": "Previous month cumulative achievement for SUNTIK."
+        },
+        "SUNTIK_ini": {
+          "type": "number",
+          "description": "Current month achievement for SUNTIK."
+        },
+        "PIL_lalu": {
+          "type": "number",
+          "description": "Previous month cumulative achievement for PIL."
+        },
+        "PIL_ini": {
+          "type": "number",
+          "description": "Current month achievement for PIL."
+        },
+        "KONDOM_lalu": {
+          "type": "number",
+          "description": "Previous month cumulative achievement for KONDOM."
+        },
+        "KONDOM_ini": {
+          "type": "number",
+          "description": "Current month achievement for KONDOM."
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "Username of the operator or administrator who saved the entry.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\- ]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last update."
+        }
+      },
+      "required": [
+        "appId", "kecamatan", "bulan",
+        "MOW_lalu", "MOW_ini", "MOP_lalu", "MOP_ini",
+        "IUD_lalu", "IUD_ini", "IMPLAN_lalu", "IMPLAN_ini",
+        "SUNTIK_lalu", "SUNTIK_ini", "PIL_lalu", "PIL_ini",
+        "KONDOM_lalu", "KONDOM_ini", "updatedBy", "updatedAt"
+      ]
+    },
+    "KbMeta": {
+      "title": "KbMeta",
+      "description": "Global metadata tracking which months have active entries and synchronization state.",
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": "string",
+          "description": "Application namespace identifier.",
+          "enum": ["bojonegoro-kb-v1"],
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "enteredMonths": {
+          "type": "array",
+          "description": "Bounded list of months (max 12) that have been entered by operators."
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "Username of the operator or administrator who updated metadata.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\- ]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the metadata update."
+        }
+      },
+      "required": ["appId", "enteredMonths", "updatedBy", "updatedAt"]
+    },
+    "KbAccount": {
+      "title": "KbAccount",
+      "description": "Custom password configuration for an official subdistrict or admin account.",
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": "string",
+          "description": "Application namespace identifier.",
+          "enum": ["bojonegoro-kb-v1"],
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "username": {
+          "type": "string",
+          "description": "Official account username (Kecamatan name or ADMIN).",
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[A-Z]+$"
+        },
+        "customPassword": {
+          "type": "string",
+          "description": "Updated password for the official account.",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the password change."
+        }
+      },
+      "required": ["appId", "username", "customPassword", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/kb_entries/{entryId}": {
+      "schema": { "$ref": "#/entities/KbEntry" },
+      "description": "Stores real-time contraceptive achievement entries per Kecamatan and Bulan."
+    },
+    "/kb_meta/{metaId}": {
+      "schema": { "$ref": "#/entities/KbMeta" },
+      "description": "Stores real-time synchronization metadata and list of entered months."
+    },
+    "/kb_accounts/{accountId}": {
+      "schema": { "$ref": "#/entities/KbAccount" },
+      "description": "Stores real-time updated passwords for official Kecamatan and Admin accounts."
+    }
+  }
+}

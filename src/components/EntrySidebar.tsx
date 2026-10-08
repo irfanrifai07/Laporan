@@ -27,6 +27,7 @@ import {
   getPreviousMonth
 } from '../utils/dataManager';
 import { syncRowsToGoogleSheets } from '../utils/googleSheetsSync';
+import { syncKecamatanMonthToFirebase } from '../utils/firebaseSync';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -62,6 +63,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   const [toastMessage, setToastMessage] = useState('');
   const [lastSavedTime, setLastSavedTime] = useState<string>('Tersimpan');
   const prevTargetRef = useRef<string>('');
+  const firebaseSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const prevMonth = useMemo(() => getPreviousMonth(selectedBulan), [selectedBulan]);
 
@@ -97,7 +99,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
     field: 'blnLalu' | 'blnIni', 
     value: string
   ) => {
-    const numValue = Math.max(0, parseFloat(value) || 0);
+    const numValue = Math.min(1000000, Math.max(0, Math.round(parseFloat(value) || 0)));
     const lockedPpm = getOfficialPpm(activeKecamatan, method);
     const newEntries: AllMethodsEntry = {
       ...entries,
@@ -109,7 +111,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
     };
     setEntries(newEntries);
 
-    // AUTO-SAVE OTOMATIS: langsung terapkan perubahan ke data & simpan permanen ke localStorage
+    // AUTO-SAVE OTOMATIS: langsung terapkan perubahan ke data & simpan permanen ke localStorage + Cloud Firestore
     const updatedData = applyMethodEntryToData(
       currentData,
       activeKecamatan,
@@ -119,6 +121,20 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
 
     saveLocalEntriesToStorage(updatedData);
     onDataUpdated(updatedData, activeKecamatan, selectedBulan);
+
+    if (firebaseSyncTimerRef.current) {
+      clearTimeout(firebaseSyncTimerRef.current);
+    }
+    const targetKecSnapshot = activeKecamatan;
+    const targetBulanSnapshot = selectedBulan;
+    firebaseSyncTimerRef.current = setTimeout(() => {
+      syncKecamatanMonthToFirebase(
+        updatedData,
+        targetKecSnapshot,
+        targetBulanSnapshot,
+        targetKecSnapshot
+      ).catch(() => {});
+    }, 300);
 
     // Sinkronisasi data bulan yang diubah ke spreadsheet di background
     const rowsForSelectedMonth = updatedData.filter(r => 
@@ -165,6 +181,11 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
 
   // Handle Save explicitly
   const handleSave = () => {
+    if (firebaseSyncTimerRef.current) {
+      clearTimeout(firebaseSyncTimerRef.current);
+      firebaseSyncTimerRef.current = null;
+    }
+
     const updatedData = applyMethodEntryToData(
       currentData,
       activeKecamatan,
@@ -174,6 +195,13 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
 
     saveLocalEntriesToStorage(updatedData);
     onDataUpdated(updatedData, activeKecamatan, selectedBulan);
+
+    syncKecamatanMonthToFirebase(
+      updatedData,
+      activeKecamatan,
+      selectedBulan,
+      activeKecamatan
+    ).catch(() => {});
 
     // Sinkronisasi data bulan yang diubah ke spreadsheet
     const rowsForSelectedMonth = updatedData.filter(r => 
@@ -233,7 +261,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                     </h2>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-black text-emerald-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />
-                      Auto-Save Aktif
+                      Real-Time Firebase
                     </span>
                   </div>
                   <p className="text-[10px] text-teal-400 font-semibold tracking-wider uppercase">
@@ -566,9 +594,9 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <div>
                   <span className="text-[11px] font-bold text-emerald-400 block sm:inline">
-                    Tersimpan Otomatis{lastSavedTime !== 'Tersimpan' ? ` (${lastSavedTime})` : ''}
+                    Tersimpan Real-Time di Firebase{lastSavedTime !== 'Tersimpan' ? ` (${lastSavedTime})` : ''}
                   </span>
-                  <span className="text-[10px] text-slate-400 sm:ml-1 hidden sm:inline">&bull; Data tidak akan hilang</span>
+                  <span className="text-[10px] text-slate-400 sm:ml-1 hidden sm:inline">&bull; Sinkron otomatis ke semua perangkat</span>
                 </div>
               </div>
 

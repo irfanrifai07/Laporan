@@ -36,6 +36,10 @@ import {
   generateMasterDatasetFromOfficialPpm,
   isMonthEntered
 } from './utils/dataManager';
+import {
+  subscribeToRealtimeKbData,
+  clearAllEntriesInFirebase
+} from './utils/firebaseSync';
 import { EntrySidebar } from './components/EntrySidebar';
 import { EntryView } from './components/EntryView';
 import { TableView } from './components/TableView';
@@ -252,11 +256,18 @@ export default function App() {
   }, [data]);
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(() => {
-      refreshDataSilently();
-    }, 60000);
-    return () => clearInterval(interval);
+    const initialLocal = loadLocalEntriesFromStorage();
+    const unsubscribe = subscribeToRealtimeKbData(
+      (syncedDataset) => {
+        setData(syncedDataset);
+        setIsLoading(false);
+      },
+      undefined,
+      initialLocal ? syncDataWithOfficialPpm(initialLocal) : undefined
+    );
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const fetchData = async () => {
@@ -303,8 +314,9 @@ export default function App() {
       saveLocalEntriesToStorage(emptied);
       return emptied;
     });
+    clearAllEntriesInFirebase(currentUser?.username || 'ADMIN').catch(() => {});
     setShowEmptyConfirmModal(false);
-    setNotification("Semua data capaian yang sudah dientri berhasil dikosongkan. Target PPM resmi tetap tersimpan.");
+    setNotification("Semua data capaian yang sudah dientri berhasil dikosongkan secara real-time di Firebase. Target PPM resmi tetap tersimpan.");
     setTimeout(() => setNotification(null), 4000);
   };
 
@@ -335,11 +347,12 @@ export default function App() {
     }
   };
 
-  // Reset to original data from Google Sheets API
+  // Reset to original data from Google Sheets API / Firebase
   const handleResetToApiData = async () => {
     clearLocalStorage();
+    await clearAllEntriesInFirebase(currentUser?.username || 'ADMIN').catch(() => {});
     await fetchData();
-    setNotification("Data telah direset kembali ke data default dari Google Sheets.");
+    setNotification("Data telah direset kembali di Firebase dan penyimpanan lokal.");
     setTimeout(() => setNotification(null), 4000);
   };
 
@@ -1112,8 +1125,8 @@ export default function App() {
         {/* Footer Info (Desktop) */}
         <footer className="h-8 bg-slate-800 border-t border-slate-700 px-6 hidden lg:flex items-center justify-between text-[10px] font-bold text-slate-500 shrink-0">
           <div className="flex items-center space-x-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-            <span className="text-emerald-400">Penyimpanan Otomatis Aktif (Auto-Save)</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="text-emerald-400">Penyimpanan Real-Time Firebase Aktif (Auto-Sync)</span>
           </div>
           <span>SISTEM INFORMASI CAPAIAN LAYANAN &bull; 2024</span>
         </footer>

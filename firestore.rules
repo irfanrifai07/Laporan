@@ -1,0 +1,215 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net (Default-Deny Catch-All)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return (isSignedIn() && request.auth.token.email_verified == true && request.auth.token.email == 'irfanindra07@gmail.com') ||
+        (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isValidMetric(val) {
+      return val is number && val >= 0 && val <= 1000000;
+    }
+
+    function isValidKecamatan(kec) {
+      return kec is string &&
+        kec.size() >= 1 &&
+        kec.size() <= 64 &&
+        kec.matches('^[A-Z ]+$') &&
+        kec in [
+          'NGRAHO', 'TAMBAKREJO', 'NGAMBON', 'NGASEM', 'BUBULAN', 'DANDER',
+          'SUGIHWARAS', 'KEDUNGADEM', 'KEPOHBARU', 'BAURENO', 'KANOR', 'SUMBEREJO',
+          'BALEN', 'KAPAS', 'BOJONEGORO', 'KALITIDU', 'MALO', 'PURWOSARI',
+          'PADANGAN', 'KASIMAN', 'TEMAYANG', 'MARGOMULYO', 'TRUCUK', 'SUKOSEWU',
+          'KEDEWAN', 'GONDANG', 'SEKAR', 'GAYAM'
+        ];
+    }
+
+    function isValidBulan(bulan) {
+      return bulan is string &&
+        bulan.size() >= 1 &&
+        bulan.size() <= 20 &&
+        bulan.matches('^[a-zA-Z]+$') &&
+        bulan in [
+          'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidKbEntry(data) {
+      return data.keys().hasAll([
+          'appId', 'kecamatan', 'bulan',
+          'MOW_lalu', 'MOW_ini', 'MOP_lalu', 'MOP_ini',
+          'IUD_lalu', 'IUD_ini', 'IMPLAN_lalu', 'IMPLAN_ini',
+          'SUNTIK_lalu', 'SUNTIK_ini', 'PIL_lalu', 'PIL_ini',
+          'KONDOM_lalu', 'KONDOM_ini', 'updatedBy', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'appId', 'kecamatan', 'bulan',
+          'MOW_lalu', 'MOW_ini', 'MOP_lalu', 'MOP_ini',
+          'IUD_lalu', 'IUD_ini', 'IMPLAN_lalu', 'IMPLAN_ini',
+          'SUNTIK_lalu', 'SUNTIK_ini', 'PIL_lalu', 'PIL_ini',
+          'KONDOM_lalu', 'KONDOM_ini', 'updatedBy', 'updatedAt'
+        ]) &&
+        data.appId is string &&
+        data.appId.size() >= 1 &&
+        data.appId.size() <= 32 &&
+        data.appId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.appId == 'bojonegoro-kb-v1' &&
+        isValidKecamatan(data.kecamatan) &&
+        isValidBulan(data.bulan) &&
+        isValidMetric(data.MOW_lalu) &&
+        isValidMetric(data.MOW_ini) &&
+        isValidMetric(data.MOP_lalu) &&
+        isValidMetric(data.MOP_ini) &&
+        isValidMetric(data.IUD_lalu) &&
+        isValidMetric(data.IUD_ini) &&
+        isValidMetric(data.IMPLAN_lalu) &&
+        isValidMetric(data.IMPLAN_ini) &&
+        isValidMetric(data.SUNTIK_lalu) &&
+        isValidMetric(data.SUNTIK_ini) &&
+        isValidMetric(data.PIL_lalu) &&
+        isValidMetric(data.PIL_ini) &&
+        isValidMetric(data.KONDOM_lalu) &&
+        isValidMetric(data.KONDOM_ini) &&
+        data.updatedBy is string &&
+        data.updatedBy.size() >= 1 &&
+        data.updatedBy.size() <= 64 &&
+        data.updatedBy.matches('^[a-zA-Z0-9_\\- ]+$') &&
+        data.updatedAt == request.time;
+    }
+
+    function isValidKbMeta(data) {
+      return data.keys().hasAll(['appId', 'enteredMonths', 'updatedBy', 'updatedAt']) &&
+        data.keys().hasOnly(['appId', 'enteredMonths', 'updatedBy', 'updatedAt']) &&
+        data.appId is string &&
+        data.appId.size() >= 1 &&
+        data.appId.size() <= 32 &&
+        data.appId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.appId == 'bojonegoro-kb-v1' &&
+        data.enteredMonths is list &&
+        data.enteredMonths.size() <= 12 &&
+        (data.enteredMonths.size() == 0 || (data.enteredMonths[0] is string && data.enteredMonths[0].size() <= 20)) &&
+        data.updatedBy is string &&
+        data.updatedBy.size() >= 1 &&
+        data.updatedBy.size() <= 64 &&
+        data.updatedBy.matches('^[a-zA-Z0-9_\\- ]+$') &&
+        data.updatedAt == request.time;
+    }
+
+    function isValidKbAccount(data) {
+      return data.keys().hasAll(['appId', 'username', 'customPassword', 'updatedAt']) &&
+        data.keys().hasOnly(['appId', 'username', 'customPassword', 'updatedAt']) &&
+        data.appId is string &&
+        data.appId.size() >= 1 &&
+        data.appId.size() <= 32 &&
+        data.appId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.appId == 'bojonegoro-kb-v1' &&
+        data.username is string &&
+        data.username.size() >= 1 &&
+        data.username.size() <= 32 &&
+        data.username.matches('^[A-Z]+$') &&
+        data.customPassword is string &&
+        data.customPassword.size() >= 4 &&
+        data.customPassword.size() <= 64 &&
+        data.updatedAt == request.time;
+    }
+
+    // Connection validation probe endpoint
+    match /test/{docId} {
+      allow get: if isValidId(docId) && docId == 'connection';
+    }
+
+    // Collection 1: Real-time Contraceptive Achievement Entries per Kecamatan & Bulan
+    match /kb_entries/{entryId} {
+      allow get: if isValidId(entryId) && (resource == null || existing().appId == 'bojonegoro-kb-v1');
+      allow list: if existing().appId == 'bojonegoro-kb-v1';
+
+      allow create: if isValidId(entryId) &&
+        isValidKbEntry(incoming()) &&
+        entryId == incoming().kecamatan + '_' + incoming().bulan;
+
+      allow update: if isValidId(entryId) &&
+        isValidKbEntry(incoming()) &&
+        entryId == incoming().kecamatan + '_' + incoming().bulan &&
+        incoming().appId == existing().appId &&
+        incoming().kecamatan == existing().kecamatan &&
+        incoming().bulan == existing().bulan &&
+        (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'MOW_lalu', 'MOW_ini', 'MOP_lalu', 'MOP_ini',
+            'IUD_lalu', 'IUD_ini', 'IMPLAN_lalu', 'IMPLAN_ini',
+            'SUNTIK_lalu', 'SUNTIK_ini', 'PIL_lalu', 'PIL_ini',
+            'KONDOM_lalu', 'KONDOM_ini', 'updatedBy', 'updatedAt'
+          ])
+        );
+
+      allow delete: if isValidId(entryId) && existing().appId == 'bojonegoro-kb-v1';
+    }
+
+    // Collection 2: Global Metadata & Entered Months Synchronization
+    match /kb_meta/{metaId} {
+      allow get: if isValidId(metaId) && metaId == 'config' && (resource == null || existing().appId == 'bojonegoro-kb-v1');
+      allow list: if existing().appId == 'bojonegoro-kb-v1';
+
+      allow create: if isValidId(metaId) &&
+        metaId == 'config' &&
+        isValidKbMeta(incoming());
+
+      allow update: if isValidId(metaId) &&
+        metaId == 'config' &&
+        isValidKbMeta(incoming()) &&
+        incoming().appId == existing().appId &&
+        (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['enteredMonths', 'updatedBy', 'updatedAt'])
+        );
+
+      allow delete: if isValidId(metaId) && metaId == 'config' && existing().appId == 'bojonegoro-kb-v1';
+    }
+
+    // Collection 3: Official Kecamatan & Admin Account Password Synchronization
+    match /kb_accounts/{accountId} {
+      allow get: if isValidId(accountId) && (resource == null || existing().appId == 'bojonegoro-kb-v1');
+      allow list: if existing().appId == 'bojonegoro-kb-v1';
+
+      allow create: if isValidId(accountId) &&
+        isValidKbAccount(incoming()) &&
+        accountId == incoming().username;
+
+      allow update: if isValidId(accountId) &&
+        isValidKbAccount(incoming()) &&
+        accountId == incoming().username &&
+        incoming().appId == existing().appId &&
+        incoming().username == existing().username &&
+        (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['customPassword', 'updatedAt'])
+        );
+    }
+  }
+}
