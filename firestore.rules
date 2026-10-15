@@ -67,13 +67,22 @@ service cloud.firestore {
           'SUNTIK_lalu', 'SUNTIK_ini', 'PIL_lalu', 'PIL_ini',
           'KONDOM_lalu', 'KONDOM_ini', 'updatedBy', 'updatedAt'
         ]) &&
-        data.keys().hasOnly([
-          'appId', 'kecamatan', 'bulan',
-          'MOW_lalu', 'MOW_ini', 'MOP_lalu', 'MOP_ini',
-          'IUD_lalu', 'IUD_ini', 'IMPLAN_lalu', 'IMPLAN_ini',
-          'SUNTIK_lalu', 'SUNTIK_ini', 'PIL_lalu', 'PIL_ini',
-          'KONDOM_lalu', 'KONDOM_ini', 'updatedBy', 'updatedAt'
-        ]) &&
+        (
+          data.keys().hasOnly([
+            'appId', 'kecamatan', 'bulan',
+            'MOW_lalu', 'MOW_ini', 'MOP_lalu', 'MOP_ini',
+            'IUD_lalu', 'IUD_ini', 'IMPLAN_lalu', 'IMPLAN_ini',
+            'SUNTIK_lalu', 'SUNTIK_ini', 'PIL_lalu', 'PIL_ini',
+            'KONDOM_lalu', 'KONDOM_ini', 'updatedBy', 'updatedAt'
+          ]) ||
+          data.keys().hasOnly([
+            'appId', 'kecamatan', 'bulan', 'year',
+            'MOW_lalu', 'MOW_ini', 'MOP_lalu', 'MOP_ini',
+            'IUD_lalu', 'IUD_ini', 'IMPLAN_lalu', 'IMPLAN_ini',
+            'SUNTIK_lalu', 'SUNTIK_ini', 'PIL_lalu', 'PIL_ini',
+            'KONDOM_lalu', 'KONDOM_ini', 'updatedBy', 'updatedAt'
+          ])
+        ) &&
         data.appId is string &&
         data.appId.size() >= 1 &&
         data.appId.size() <= 32 &&
@@ -81,6 +90,7 @@ service cloud.firestore {
         data.appId == 'bojonegoro-kb-v1' &&
         isValidKecamatan(data.kecamatan) &&
         isValidBulan(data.bulan) &&
+        (!('year' in data) || (data.year is string && data.year.matches('^[0-9]{4}$'))) &&
         isValidMetric(data.MOW_lalu) &&
         isValidMetric(data.MOW_ini) &&
         isValidMetric(data.MOP_lalu) &&
@@ -104,7 +114,11 @@ service cloud.firestore {
 
     function isValidKbMeta(data) {
       return data.keys().hasAll(['appId', 'enteredMonths', 'updatedBy', 'updatedAt']) &&
-        data.keys().hasOnly(['appId', 'enteredMonths', 'updatedBy', 'updatedAt']) &&
+        (
+          data.keys().hasOnly(['appId', 'enteredMonths', 'updatedBy', 'updatedAt']) ||
+          data.keys().hasOnly(['appId', 'enteredMonths', 'activeYear', 'updatedBy', 'updatedAt']) ||
+          data.keys().hasOnly(['appId', 'enteredMonths', 'activeYear', 'enteredMonthsByYear', 'updatedBy', 'updatedAt'])
+        ) &&
         data.appId is string &&
         data.appId.size() >= 1 &&
         data.appId.size() <= 32 &&
@@ -113,6 +127,8 @@ service cloud.firestore {
         data.enteredMonths is list &&
         data.enteredMonths.size() <= 12 &&
         (data.enteredMonths.size() == 0 || (data.enteredMonths[0] is string && data.enteredMonths[0].size() <= 20)) &&
+        (!('activeYear' in data) || (data.activeYear is string && data.activeYear.matches('^[0-9]{4}$'))) &&
+        (!('enteredMonthsByYear' in data) || data.enteredMonthsByYear is map) &&
         data.updatedBy is string &&
         data.updatedBy.size() >= 1 &&
         data.updatedBy.size() <= 64 &&
@@ -138,33 +154,58 @@ service cloud.firestore {
         data.updatedAt == request.time;
     }
 
+    function isValidKbPpmTarget(data) {
+      return data.keys().hasAll(['appId', 'year', 'targets', 'updatedBy', 'updatedAt']) &&
+        data.keys().hasOnly(['appId', 'year', 'targets', 'updatedBy', 'updatedAt']) &&
+        data.appId is string &&
+        data.appId.size() >= 1 &&
+        data.appId.size() <= 32 &&
+        data.appId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.appId == 'bojonegoro-kb-v1' &&
+        data.year is string &&
+        data.year.matches('^[0-9]{4}$') &&
+        data.targets is map &&
+        data.updatedBy is string &&
+        data.updatedBy.size() >= 1 &&
+        data.updatedBy.size() <= 64 &&
+        data.updatedBy.matches('^[a-zA-Z0-9_\\- ]+$') &&
+        data.updatedAt == request.time;
+    }
+
     // Connection validation probe endpoint
     match /test/{docId} {
       allow get: if isValidId(docId) && docId == 'connection';
     }
 
-    // Collection 1: Real-time Contraceptive Achievement Entries per Kecamatan & Bulan
+    // Collection 1: Real-time Contraceptive Achievement Entries per Kecamatan & Bulan (with multi-year support)
     match /kb_entries/{entryId} {
       allow get: if isValidId(entryId) && (resource == null || existing().appId == 'bojonegoro-kb-v1');
       allow list: if existing().appId == 'bojonegoro-kb-v1';
 
       allow create: if isValidId(entryId) &&
         isValidKbEntry(incoming()) &&
-        entryId == incoming().kecamatan + '_' + incoming().bulan;
+        (
+          entryId == incoming().kecamatan + '_' + incoming().bulan ||
+          (('year' in incoming()) && entryId == incoming().kecamatan + '_' + incoming().bulan + '_' + incoming().year)
+        );
 
       allow update: if isValidId(entryId) &&
         isValidKbEntry(incoming()) &&
-        entryId == incoming().kecamatan + '_' + incoming().bulan &&
+        (
+          entryId == incoming().kecamatan + '_' + incoming().bulan ||
+          (('year' in incoming()) && entryId == incoming().kecamatan + '_' + incoming().bulan + '_' + incoming().year)
+        ) &&
         incoming().appId == existing().appId &&
         incoming().kecamatan == existing().kecamatan &&
         incoming().bulan == existing().bulan &&
+        (!('year' in existing()) || incoming().year == existing().year) &&
         (
           isAdmin() ||
           incoming().diff(existing()).affectedKeys().hasOnly([
             'MOW_lalu', 'MOW_ini', 'MOP_lalu', 'MOP_ini',
             'IUD_lalu', 'IUD_ini', 'IMPLAN_lalu', 'IMPLAN_ini',
             'SUNTIK_lalu', 'SUNTIK_ini', 'PIL_lalu', 'PIL_ini',
-            'KONDOM_lalu', 'KONDOM_ini', 'updatedBy', 'updatedAt'
+            'KONDOM_lalu', 'KONDOM_ini', 'year', 'updatedBy', 'updatedAt'
           ])
         );
 
@@ -186,7 +227,7 @@ service cloud.firestore {
         incoming().appId == existing().appId &&
         (
           isAdmin() ||
-          incoming().diff(existing()).affectedKeys().hasOnly(['enteredMonths', 'updatedBy', 'updatedAt'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['enteredMonths', 'activeYear', 'updatedBy', 'updatedAt'])
         );
 
       allow delete: if isValidId(metaId) && metaId == 'config' && existing().appId == 'bojonegoro-kb-v1';
@@ -210,6 +251,28 @@ service cloud.firestore {
           isAdmin() ||
           incoming().diff(existing()).affectedKeys().hasOnly(['customPassword', 'updatedAt'])
         );
+    }
+
+    // Collection 4: Official Annual PPM Targets per Year
+    match /kb_ppm_targets/{targetId} {
+      allow get: if isValidId(targetId) && (resource == null || existing().appId == 'bojonegoro-kb-v1');
+      allow list: if existing().appId == 'bojonegoro-kb-v1';
+
+      allow create: if isValidId(targetId) &&
+        isValidKbPpmTarget(incoming()) &&
+        targetId == 'targets_' + incoming().year;
+
+      allow update: if isValidId(targetId) &&
+        isValidKbPpmTarget(incoming()) &&
+        targetId == 'targets_' + incoming().year &&
+        incoming().appId == existing().appId &&
+        incoming().year == existing().year &&
+        (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['targets', 'updatedBy', 'updatedAt'])
+        );
+
+      allow delete: if isValidId(targetId) && existing().appId == 'bojonegoro-kb-v1';
     }
   }
 }

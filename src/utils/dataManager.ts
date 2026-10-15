@@ -12,20 +12,22 @@ import {
   KECAMATAN_LIST,
   MONTHS
 } from '../types';
-import { getOfficialPpm } from '../data/ppmData';
+import { getOfficialPpm, PpmTargetMap } from '../data/ppmData';
 
 export const LOCAL_STORAGE_KEY = 'laporan_kb_local_entries_v3';
 export const LOCAL_STORAGE_TIMESTAMP_KEY = 'laporan_kb_last_saved_at';
 export const LOCAL_STORAGE_ENTERED_MONTHS = 'laporan_kb_entered_months_v3';
 
 /**
- * Mendapatkan daftar bulan yang sudah dientri datanya oleh pengguna atau dari database.
+ * Mendapatkan daftar bulan yang sudah dientri datanya oleh pengguna atau dari database untuk tahun tertentu.
  */
-export function getEnteredMonths(sourceData?: RawDataRow[]): string[] {
+export function getEnteredMonths(sourceData?: RawDataRow[], year?: string): string[] {
   const enteredSet = new Set<string>();
+  const cleanYear = (year || '2026').trim();
+  const yearKey = `${LOCAL_STORAGE_ENTERED_MONTHS}_${cleanYear}`;
 
   try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_ENTERED_MONTHS);
+    const saved = localStorage.getItem(yearKey) || (cleanYear === '2026' ? localStorage.getItem(LOCAL_STORAGE_ENTERED_MONTHS) : null);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
@@ -36,9 +38,11 @@ export function getEnteredMonths(sourceData?: RawDataRow[]): string[] {
     }
   } catch {}
 
-  // Pindai juga dataset: jika ada baris dengan blnIni > 0, bulan tersebut dianggap sudah dientri
+  // Pindai juga dataset: jika ada baris dengan blnIni > 0 (dan sesuai tahun jika ada), bulan tersebut dianggap sudah dientri
   if (Array.isArray(sourceData)) {
     sourceData.forEach(r => {
+      const rowYear = r[9]?.toString().trim();
+      if (rowYear && rowYear !== cleanYear) return;
       const blnIni = parseFloat(String(r[3])) || 0;
       const m = r[8]?.toString().trim();
       if (blnIni > 0 && m) {
@@ -51,37 +55,47 @@ export function getEnteredMonths(sourceData?: RawDataRow[]): string[] {
 }
 
 /**
- * Memeriksa apakah bulan tertentu sudah pernah dientri data layanannya.
+ * Memeriksa apakah bulan tertentu sudah pernah dientri data layanannya untuk tahun tertentu.
  * Jika belum dientri, data yang ditampilkan harus kosong (0 capaian).
  */
-export function isMonthEntered(month: string, sourceData?: RawDataRow[]): boolean {
+export function isMonthEntered(month: string, sourceData?: RawDataRow[], year?: string): boolean {
   if (!month) return false;
   const cleanM = month.trim();
-  const enteredList = getEnteredMonths(sourceData);
+  const enteredList = getEnteredMonths(sourceData, year);
   return enteredList.includes(cleanM);
 }
 
 /**
- * Tandai suatu bulan sebagai sudah dientri
+ * Tandai suatu bulan sebagai sudah dientri untuk tahun tertentu
  */
-export function markMonthAsEntered(month: string): void {
+export function markMonthAsEntered(month: string, year?: string): void {
   if (!month) return;
+  const cleanYear = (year || '2026').trim();
+  const yearKey = `${LOCAL_STORAGE_ENTERED_MONTHS}_${cleanYear}`;
+
   try {
-    const current = getEnteredMonths();
+    const current = getEnteredMonths(undefined, cleanYear);
     const clean = month.trim();
     if (!current.includes(clean)) {
       current.push(clean);
-      localStorage.setItem(LOCAL_STORAGE_ENTERED_MONTHS, JSON.stringify(current));
+      localStorage.setItem(yearKey, JSON.stringify(current));
+      if (cleanYear === '2026') {
+        localStorage.setItem(LOCAL_STORAGE_ENTERED_MONTHS, JSON.stringify(current));
+      }
     }
   } catch {}
 }
 
 /**
- * Reset penanda bulan dientri
+ * Reset penanda bulan dientri untuk tahun tertentu
  */
-export function resetEnteredMonths(): void {
+export function resetEnteredMonths(year?: string): void {
+  const cleanYear = (year || '2026').trim();
   try {
-    localStorage.removeItem(LOCAL_STORAGE_ENTERED_MONTHS);
+    localStorage.removeItem(`${LOCAL_STORAGE_ENTERED_MONTHS}_${cleanYear}`);
+    if (cleanYear === '2026') {
+      localStorage.removeItem(LOCAL_STORAGE_ENTERED_MONTHS);
+    }
   } catch {}
 }
 
@@ -102,21 +116,22 @@ export function getPreviousMonth(month: string): string | null {
  * across all 12 months and 10 categories (7 alokon + MKJP + NON MKJP + SEMUA METODE),
  * using the official PPM targets from the PDF document.
  */
-export function generateMasterDatasetFromOfficialPpm(): RawDataRow[] {
+export function generateMasterDatasetFromOfficialPpm(customPpmTargets?: PpmTargetMap, year?: string): RawDataRow[] {
   const result: RawDataRow[] = [];
   const allCategories = [...METHOD_KEYS, 'MKJP', 'NON MKJP', 'SEMUA METODE'];
   const allLocations = [...KECAMATAN_LIST, 'JUMLAH (KABUPATEN BOJONEGORO)'];
+  const activeYear = (year || '2026').trim();
 
   MONTHS.forEach(month => {
     allLocations.forEach(kec => {
       allCategories.forEach(cat => {
-        const ppm = getOfficialPpm(kec, cat);
+        const ppm = getOfficialPpm(kec, cat, customPpmTargets);
         const blnLalu = 0;
         const blnIni = 0;
         const jumlah = 0;
         const percentage = 0;
         const sisa = ppm;
-        result.push([kec, ppm, blnLalu, blnIni, jumlah, percentage, sisa, cat, month]);
+        result.push([kec, ppm, blnLalu, blnIni, jumlah, percentage, sisa, cat, month, activeYear]);
       });
     });
   });
@@ -129,9 +144,15 @@ export function generateMasterDatasetFromOfficialPpm(): RawDataRow[] {
  * while preserving custom achievements (blnIni).
  * Data Bulan Lalu (blnLalu) secara otomatis diambil dari Jumlah Capaian bulan sebelumnya.
  */
-export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
+export function syncDataWithOfficialPpm(
+  data: RawDataRow[], 
+  customPpmTargets?: PpmTargetMap,
+  year?: string
+): RawDataRow[] {
+  const activeYear = (year || data?.[0]?.[9] || '2026').toString().trim();
+
   if (!Array.isArray(data) || data.length === 0) {
-    return generateMasterDatasetFromOfficialPpm();
+    return generateMasterDatasetFromOfficialPpm(customPpmTargets, activeYear);
   }
 
   // Create a map of existing entries: key = `${kec}_${cat}_${month}`
@@ -160,7 +181,7 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
 
   MONTHS.forEach((month, monthIndex) => {
     // Periksa apakah bulan ini sudah dientri data oleh pengguna atau memiliki data aktif
-    const isThisMonthEntered = isMonthEntered(month, data);
+    const isThisMonthEntered = isMonthEntered(month, data, activeYear);
 
     // 1. Proses 28 Kecamatan
     const monthKecRows: { [cat: string]: { blnLalu: number; blnIni: number } } = {};
@@ -177,7 +198,7 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
         const saved = entryMap.get(`${cleanKec}_${cleanCat}_${month}`);
         
         // Target PPM resmi dari dokumen Data PPM
-        const ppm = getOfficialPpm(kec, cat);
+        const ppm = getOfficialPpm(kec, cat, customPpmTargets);
 
         let blnLalu = 0;
         let blnIni = 0;
@@ -213,11 +234,11 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
         monthKecRows[cat].blnLalu += blnLalu;
         monthKecRows[cat].blnIni += blnIni;
 
-        synced.push([kec, ppm, blnLalu, blnIni, jumlah, percentage, sisa, cat, month]);
+        synced.push([kec, ppm, blnLalu, blnIni, jumlah, percentage, sisa, cat, month, activeYear]);
       });
 
       // Hitung MKJP untuk kecamatan ini
-      const mkjpPpm = MKJP_METHODS.reduce((s, m) => s + getOfficialPpm(kec, m), 0);
+      const mkjpPpm = MKJP_METHODS.reduce((s, m) => s + getOfficialPpm(kec, m, customPpmTargets), 0);
       const mkjpBlnLalu = MKJP_METHODS.reduce((s, m) => {
         const row = synced.find(r => r[0] === kec && r[7] === m && r[8] === month);
         return s + (parseFloat(String(row?.[2])) || 0);
@@ -234,10 +255,10 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
       }
       monthKecRows['MKJP'].blnLalu += mkjpBlnLalu;
       monthKecRows['MKJP'].blnIni += mkjpBlnIni;
-      synced.push([kec, mkjpPpm, mkjpBlnLalu, mkjpBlnIni, mkjpJumlah, mkjpPercentage, mkjpSisa, 'MKJP', month]);
+      synced.push([kec, mkjpPpm, mkjpBlnLalu, mkjpBlnIni, mkjpJumlah, mkjpPercentage, mkjpSisa, 'MKJP', month, activeYear]);
 
       // Hitung NON MKJP untuk kecamatan ini
-      const nonMkjpPpm = NON_MKJP_METHODS.reduce((s, m) => s + getOfficialPpm(kec, m), 0);
+      const nonMkjpPpm = NON_MKJP_METHODS.reduce((s, m) => s + getOfficialPpm(kec, m, customPpmTargets), 0);
       const nonMkjpBlnLalu = NON_MKJP_METHODS.reduce((s, m) => {
         const row = synced.find(r => r[0] === kec && r[7] === m && r[8] === month);
         return s + (parseFloat(String(row?.[2])) || 0);
@@ -254,7 +275,7 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
       }
       monthKecRows['NON MKJP'].blnLalu += nonMkjpBlnLalu;
       monthKecRows['NON MKJP'].blnIni += nonMkjpBlnIni;
-      synced.push([kec, nonMkjpPpm, nonMkjpBlnLalu, nonMkjpBlnIni, nonMkjpJumlah, nonMkjpPercentage, nonMkjpSisa, 'NON MKJP', month]);
+      synced.push([kec, nonMkjpPpm, nonMkjpBlnLalu, nonMkjpBlnIni, nonMkjpJumlah, nonMkjpPercentage, nonMkjpSisa, 'NON MKJP', month, activeYear]);
 
       // Hitung SEMUA METODE untuk kecamatan ini
       const semuaPpm = mkjpPpm + nonMkjpPpm;
@@ -268,12 +289,12 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
       }
       monthKecRows['SEMUA METODE'].blnLalu += semuaBlnLalu;
       monthKecRows['SEMUA METODE'].blnIni += semuaBlnIni;
-      synced.push([kec, semuaPpm, semuaBlnLalu, semuaBlnIni, semuaJumlah, semuaPercentage, semuaSisa, 'SEMUA METODE', month]);
+      synced.push([kec, semuaPpm, semuaBlnLalu, semuaBlnIni, semuaJumlah, semuaPercentage, semuaSisa, 'SEMUA METODE', month, activeYear]);
     });
 
     // 2. Baris JUMLAH (KABUPATEN BOJONEGORO) - Target PPM selalu mengacu ke Data PPM resmi
     allCategories.forEach(cat => {
-      const kabPpm = getOfficialPpm('JUMLAH (KABUPATEN BOJONEGORO)', cat);
+      const kabPpm = getOfficialPpm('JUMLAH (KABUPATEN BOJONEGORO)', cat, customPpmTargets);
       const kabBlnLalu = monthKecRows[cat].blnLalu;
       const kabBlnIni = monthKecRows[cat].blnIni;
       const kabJumlah = kabBlnLalu + kabBlnIni;
@@ -289,7 +310,8 @@ export function syncDataWithOfficialPpm(data: RawDataRow[]): RawDataRow[] {
         kabPercentage,
         kabSisa,
         cat,
-        month
+        month,
+        activeYear
       ]);
     });
   });
@@ -320,7 +342,7 @@ export function emptyEnteredAchievements(data: RawDataRow[]): RawDataRow[] {
   });
 }
 
-export function getInitialMethodEntry(kecamatan?: string): AllMethodsEntry {
+export function getInitialMethodEntry(kecamatan?: string, customPpmTargets?: PpmTargetMap): AllMethodsEntry {
   const result = {
     MOW: { ppm: 0, blnLalu: 0, blnIni: 0 },
     MOP: { ppm: 0, blnLalu: 0, blnIni: 0 },
@@ -333,7 +355,7 @@ export function getInitialMethodEntry(kecamatan?: string): AllMethodsEntry {
 
   if (kecamatan) {
     METHOD_KEYS.forEach(m => {
-      result[m].ppm = getOfficialPpm(kecamatan, m);
+      result[m].ppm = getOfficialPpm(kecamatan, m, customPpmTargets);
     });
   }
 
@@ -347,9 +369,10 @@ export function getInitialMethodEntry(kecamatan?: string): AllMethodsEntry {
 export function extractExistingValues(
   data: RawDataRow[], 
   kecamatan: string, 
-  bulan: string
+  bulan: string,
+  customPpmTargets?: PpmTargetMap
 ): AllMethodsEntry {
-  const result = getInitialMethodEntry(kecamatan);
+  const result = getInitialMethodEntry(kecamatan, customPpmTargets);
 
   if (!Array.isArray(data)) return result;
 
@@ -390,7 +413,7 @@ export function extractExistingValues(
     const blnIni = row ? (parseFloat(String(row[3])) || 0) : 0;
 
     result[method] = {
-      ppm: getOfficialPpm(kecamatan, method),
+      ppm: getOfficialPpm(kecamatan, method, customPpmTargets),
       blnLalu,
       blnIni,
     };
@@ -409,8 +432,12 @@ export function applyMethodEntryToData(
   currentData: RawDataRow[],
   kecamatan: string,
   bulan: string,
-  entry: AllMethodsEntry
+  entry: AllMethodsEntry,
+  customPpmTargets?: PpmTargetMap,
+  year?: string
 ): RawDataRow[] {
+  const activeYear = (year || currentData?.[0]?.[9] || '2026').toString().trim();
+
   // Make a clone of the dataset
   const updatedData: RawDataRow[] = currentData.map(r => [...r] as RawDataRow);
 
@@ -423,7 +450,7 @@ export function applyMethodEntryToData(
     targetMonth: string
   ) => {
     const isJumlahKec = kec.toUpperCase().includes('JUMLAH');
-    const officialPpmTarget = isJumlahKec ? getOfficialPpm('JUMLAH (KABUPATEN BOJONEGORO)', category) : ppm;
+    const officialPpmTarget = isJumlahKec ? getOfficialPpm('JUMLAH (KABUPATEN BOJONEGORO)', category, customPpmTargets) : ppm;
     const jumlah = blnLalu + blnIni;
     const percentage = officialPpmTarget > 0 ? (jumlah / officialPpmTarget) * 100 : 0;
     const sisa = officialPpmTarget - jumlah;
@@ -450,7 +477,8 @@ export function applyMethodEntryToData(
       percentage,
       sisa,
       category,
-      targetMonth
+      targetMonth,
+      activeYear
     ];
 
     if (existingIndex >= 0) {
@@ -584,12 +612,17 @@ export function applyMethodEntryToData(
 }
 
 /**
- * Save user custom changes to localStorage
+ * Save user custom changes to localStorage per year
  */
-export function saveLocalEntriesToStorage(data: RawDataRow[]): void {
+export function saveLocalEntriesToStorage(data: RawDataRow[], year?: string): void {
   try {
     if (Array.isArray(data) && data.length > 0) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+      const cleanYear = (year || data?.[0]?.[9] || '2026').toString().trim();
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_${cleanYear}`, JSON.stringify(data));
+      if (cleanYear === '2026') {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+      }
+      localStorage.setItem(`${LOCAL_STORAGE_TIMESTAMP_KEY}_${cleanYear}`, new Date().toISOString());
       localStorage.setItem(LOCAL_STORAGE_TIMESTAMP_KEY, new Date().toISOString());
     }
   } catch (e) {
@@ -598,11 +631,13 @@ export function saveLocalEntriesToStorage(data: RawDataRow[]): void {
 }
 
 /**
- * Load local entries from localStorage
+ * Load local entries from localStorage per year
  */
-export function loadLocalEntriesFromStorage(): RawDataRow[] | null {
+export function loadLocalEntriesFromStorage(year?: string): RawDataRow[] | null {
   try {
-    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const cleanYear = (year || '2026').trim();
+    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_${cleanYear}`) || 
+                  (cleanYear === '2026' ? localStorage.getItem(LOCAL_STORAGE_KEY) : null);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -616,11 +651,13 @@ export function loadLocalEntriesFromStorage(): RawDataRow[] | null {
 }
 
 /**
- * Get timestamp of last saved data
+ * Get timestamp of last saved data per year
  */
-export function getLastSavedTimestamp(): string | null {
+export function getLastSavedTimestamp(year?: string): string | null {
   try {
-    return localStorage.getItem(LOCAL_STORAGE_TIMESTAMP_KEY);
+    const cleanYear = (year || '2026').trim();
+    return localStorage.getItem(`${LOCAL_STORAGE_TIMESTAMP_KEY}_${cleanYear}`) || 
+           (cleanYear === '2026' ? localStorage.getItem(LOCAL_STORAGE_TIMESTAMP_KEY) : null);
   } catch {
     return null;
   }
@@ -629,10 +666,20 @@ export function getLastSavedTimestamp(): string | null {
 /**
  * Clear local entries from localStorage
  */
-export function clearLocalStorage(): void {
+export function clearLocalStorage(year?: string): void {
   try {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-    localStorage.removeItem(LOCAL_STORAGE_TIMESTAMP_KEY);
+    if (year) {
+      const cleanYear = year.trim();
+      localStorage.removeItem(`${LOCAL_STORAGE_KEY}_${cleanYear}`);
+      localStorage.removeItem(`${LOCAL_STORAGE_TIMESTAMP_KEY}_${cleanYear}`);
+      if (cleanYear === '2026') {
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        localStorage.removeItem(LOCAL_STORAGE_TIMESTAMP_KEY);
+      }
+    } else {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_TIMESTAMP_KEY);
+    }
   } catch (e) {
     console.error('Failed to clear localStorage', e);
   }

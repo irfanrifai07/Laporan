@@ -18,7 +18,7 @@ import {
   AllMethodsEntry, 
   RawDataRow 
 } from '../types';
-import { getOfficialPpm } from '../data/ppmData';
+import { getOfficialPpm, PpmTargetMap } from '../data/ppmData';
 import { 
   getInitialMethodEntry, 
   extractExistingValues, 
@@ -43,6 +43,8 @@ interface EntrySidebarProps {
   defaultMonth?: string;
   defaultKecamatan?: string;
   lockedKecamatan?: string;
+  currentPpmTargets?: PpmTargetMap;
+  currentYear?: string;
 }
 
 export const EntrySidebar: React.FC<EntrySidebarProps> = ({
@@ -52,7 +54,9 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   onDataUpdated,
   defaultMonth = 'Februari',
   defaultKecamatan = 'NGRAHO',
-  lockedKecamatan
+  lockedKecamatan,
+  currentPpmTargets,
+  currentYear = '2026'
 }) => {
   const [selectedKecamatan, setSelectedKecamatan] = useState(lockedKecamatan || defaultKecamatan);
   const activeKecamatan = lockedKecamatan || selectedKecamatan;
@@ -82,16 +86,16 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   // Load existing values when kecamatan or month changes
   useEffect(() => {
     if (isOpen && currentData.length > 0) {
-      const targetKey = `${activeKecamatan}_${selectedBulan}`;
+      const targetKey = `${activeKecamatan}_${selectedBulan}_${currentYear}`;
       if (prevTargetRef.current !== targetKey) {
         prevTargetRef.current = targetKey;
-        const existing = extractExistingValues(currentData, activeKecamatan, selectedBulan);
+        const existing = extractExistingValues(currentData, activeKecamatan, selectedBulan, currentPpmTargets);
         setEntries(existing);
       }
     } else if (!isOpen) {
       prevTargetRef.current = '';
     }
-  }, [isOpen, activeKecamatan, selectedBulan, currentData]);
+  }, [isOpen, activeKecamatan, selectedBulan, currentData, currentPpmTargets, currentYear]);
 
   // Handle single input change with REAL-TIME AUTO-SAVE (Hanya untuk Bln Lalu & Bln Ini; PPM resmi terkunci)
   const handleInputChange = (
@@ -100,7 +104,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
     value: string
   ) => {
     const numValue = Math.min(1000000, Math.max(0, Math.round(parseFloat(value) || 0)));
-    const lockedPpm = getOfficialPpm(activeKecamatan, method);
+    const lockedPpm = getOfficialPpm(activeKecamatan, method, currentPpmTargets);
     const newEntries: AllMethodsEntry = {
       ...entries,
       [method]: {
@@ -116,10 +120,12 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
       currentData,
       activeKecamatan,
       selectedBulan,
-      newEntries
+      newEntries,
+      currentPpmTargets,
+      currentYear
     );
 
-    saveLocalEntriesToStorage(updatedData);
+    saveLocalEntriesToStorage(updatedData, currentYear);
     onDataUpdated(updatedData, activeKecamatan, selectedBulan);
 
     if (firebaseSyncTimerRef.current) {
@@ -127,12 +133,14 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
     }
     const targetKecSnapshot = activeKecamatan;
     const targetBulanSnapshot = selectedBulan;
+    const targetYearSnapshot = currentYear;
     firebaseSyncTimerRef.current = setTimeout(() => {
       syncKecamatanMonthToFirebase(
         updatedData,
         targetKecSnapshot,
         targetBulanSnapshot,
-        targetKecSnapshot
+        targetKecSnapshot,
+        targetYearSnapshot
       ).catch(() => {});
     }, 300);
 
@@ -190,17 +198,20 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
       currentData,
       activeKecamatan,
       selectedBulan,
-      entries
+      entries,
+      currentPpmTargets,
+      currentYear
     );
 
-    saveLocalEntriesToStorage(updatedData);
+    saveLocalEntriesToStorage(updatedData, currentYear);
     onDataUpdated(updatedData, activeKecamatan, selectedBulan);
 
     syncKecamatanMonthToFirebase(
       updatedData,
       activeKecamatan,
       selectedBulan,
-      activeKecamatan
+      activeKecamatan,
+      currentYear
     ).catch(() => {});
 
     // Sinkronisasi data bulan yang diubah ke spreadsheet
@@ -218,7 +229,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
 
   // Reset to current data
   const handleReset = () => {
-    const existing = extractExistingValues(currentData, activeKecamatan, selectedBulan);
+    const existing = extractExistingValues(currentData, activeKecamatan, selectedBulan, currentPpmTargets);
     setEntries(existing);
   };
 
@@ -255,10 +266,13 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
                   <FileSpreadsheet className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-wrap gap-1">
                     <h2 className="text-sm sm:text-base font-bold text-slate-100 uppercase tracking-tight">
                       Pop-up Entri Data Metode KB
                     </h2>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-teal-500/15 border border-teal-500/30 text-[10px] font-black text-teal-300">
+                      Tahun {currentYear}
+                    </span>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[9px] font-black text-emerald-400">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse mr-1" />
                       Real-Time Firebase
@@ -416,7 +430,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
 
                   const meta = METHOD_DETAILS[methodKey];
                   const entry = entries[methodKey];
-                  const lockedPpm = getOfficialPpm(selectedKecamatan, methodKey);
+                  const lockedPpm = getOfficialPpm(selectedKecamatan, methodKey, currentPpmTargets);
                   const jumlah = (entry.blnLalu || 0) + (entry.blnIni || 0);
                   const percentage = lockedPpm > 0 ? (jumlah / lockedPpm) * 100 : 0;
                   const sisa = lockedPpm - jumlah;

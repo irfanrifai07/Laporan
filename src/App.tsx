@@ -26,7 +26,13 @@ import {
   AuthUser
 } from './types';
 import { exportTableToExcel } from './utils/excelExport';
-import { getOfficialPpm } from './data/ppmData';
+import { 
+  getOfficialPpm, 
+  PpmTargetMap, 
+  RAW_PPM_DATA, 
+  setActivePpmTargets, 
+  setActivePpmYear 
+} from './data/ppmData';
 import { 
   loadLocalEntriesFromStorage, 
   saveLocalEntriesToStorage, 
@@ -34,11 +40,15 @@ import {
   emptyEnteredAchievements,
   syncDataWithOfficialPpm,
   generateMasterDatasetFromOfficialPpm,
-  isMonthEntered
+  isMonthEntered,
+  resetEnteredMonths
 } from './utils/dataManager';
 import {
   subscribeToRealtimeKbData,
-  clearAllEntriesInFirebase
+  clearAllEntriesInFirebase,
+  savePpmTargetsToFirebase,
+  getDatasetForYearFromEntries,
+  FirestoreKbEntryDoc
 } from './utils/firebaseSync';
 import { EntrySidebar } from './components/EntrySidebar';
 import { EntryView } from './components/EntryView';
@@ -188,14 +198,6 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleNavigateView = (view: AppView) => {
-    setCurrentView(view);
-    setIsEntrySidebarOpen(false);
-    if (isMobile) {
-      setSidebarOpen(false);
-    }
-  };
-
   // Entry Sidebar State
   const [isEntrySidebarOpen, setIsEntrySidebarOpen] = useState(false);
   const [entryTargetKecamatan, setEntryTargetKecamatan] = useState<string>('NGRAHO');
@@ -232,11 +234,33 @@ export default function App() {
   });
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
+  // Menentukan apakah pengguna yang sedang login adalah akun Kecamatan
+  const isKecamatanUser = Boolean(
+    currentUser && (currentUser.role !== 'admin' || currentUser.kecamatan)
+  );
+
+  const handleNavigateView = (view: AppView) => {
+    // Sembunyikan dan cegah akses ke Data PPM untuk user kecamatan
+    if (view === AppView.PPM && isKecamatanUser) {
+      setCurrentView(AppView.DASHBOARD);
+      return;
+    }
+    setCurrentView(view);
+    setIsEntrySidebarOpen(false);
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  };
+
   useEffect(() => {
     if (currentUser?.kecamatan) {
       setEntryTargetKecamatan(currentUser.kecamatan);
     }
-  }, [currentUser]);
+    // Jika user kecamatan sedang membuka Data PPM, otomatis arahkan ke Dashboard
+    if (isKecamatanUser && currentView === AppView.PPM) {
+      setCurrentView(AppView.DASHBOARD);
+    }
+  }, [currentUser, isKecamatanUser, currentView]);
 
   const handleLogout = () => {
     try {
@@ -248,33 +272,163 @@ export default function App() {
     setCurrentUser(null);
   };
 
-  // Auto-sync any data change to localStorage continuously
+  // PPM Target Management State (Dukungan perubahan target tahunan oleh Admin)
+  const [currentPpmYear, setCurrentPpmYear] = useState<string>(() => {
+    try {
+      return localStorage.getItem('laporan_kb_active_ppm_year') || '2026';
+    } catch {
+      return '2026';
+    }
+  });
+
+  const [currentPpmTargets, setCurrentPpmTargets] = useState<PpmTargetMap>(() => {
+    try {
+      const year = localStorage.getItem('laporan_kb_active_ppm_year') || '2026';
+      const saved = localStorage.getItem(`laporan_kb_ppm_targets_${year}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setActivePpmTargets(parsed, year);
+        return parsed;
+      }
+    } catch {}
+    return RAW_PPM_DATA;
+  });
+
+  const [availablePpmYears, setAvailablePpmYears] = useState<string[]>(['2026', '2025']);
+  const [allRawEntries, setAllRawEntries] = useState<FirestoreKbEntryDoc[]>([]);
+  const [allPpmTargetsByYear, setAllPpmTargetsByYear] = useState<Map<string, PpmTargetMap>>(new Map());
+  const [showGlobalAddYearModal, setShowGlobalAddYearModal] = useState(false);
+  const [newYearInput, setNewYearInput] = useState('');
+
+  // Auto-sync any data change to localStorage continuously per active year
   useEffect(() => {
     if (data && data.length > 0) {
-      saveLocalEntriesToStorage(data);
+      saveLocalEntriesToStorage(data, currentPpmYear);
     }
-  }, [data]);
+  }, [data, currentPpmYear]);
 
   useEffect(() => {
-    const initialLocal = loadLocalEntriesFromStorage();
+    const initialLocal = loadLocalEntriesFromStorage(currentPpmYear);
     const unsubscribe = subscribeToRealtimeKbData(
-      (syncedDataset) => {
+      (syncedDataset, _lastUpdatedBy, activeYear) => {
+        if (activeYear && activeYear !== currentPpmYear) {
+          setCurrentPpmYear(activeYear);
+          setActivePpmYear(activeYear);
+        }
         setData(syncedDataset);
         setIsLoading(false);
       },
       undefined,
-      initialLocal ? syncDataWithOfficialPpm(initialLocal) : undefined
+      initialLocal ? syncDataWithOfficialPpm(initialLocal, currentPpmTargets, currentPpmYear) : undefined,
+      (targets, year, availableYears) => {
+        setAllPpmTargetsByYear(prev => {
+          const next = new Map(prev);
+          next.set(year, targets);
+          return next;
+        });
+        if (year === currentPpmYear) {
+          setCurrentPpmTargets(targets);
+        }
+        if (availableYears && availableYears.length > 0) {
+          setAvailablePpmYears(availableYears);
+        }
+      },
+      (entries, allYears) => {
+        setAllRawEntries(entries);
+        if (allYears && allYears.length > 0) {
+          setAvailablePpmYears(allYears);
+        }
+      }
     );
     return () => {
       unsubscribe();
     };
   }, []);
 
+  // Handler beralih tahun pelaporan KB (otomatis memuat entri dan target PPM tahun terkait)
+  const handleSwitchYear = (newYear: string) => {
+    const cleanYear = newYear.trim();
+    if (!cleanYear.match(/^[0-9]{4}$/)) return;
+    setCurrentPpmYear(cleanYear);
+    setActivePpmYear(cleanYear);
+    try {
+      localStorage.setItem('laporan_kb_active_ppm_year', cleanYear);
+    } catch {}
+
+    // 1. Target PPM tahun yang dipilih
+    let targetsForYear = allPpmTargetsByYear.get(cleanYear);
+    if (!targetsForYear) {
+      try {
+        const saved = localStorage.getItem(`laporan_kb_ppm_targets_${cleanYear}`);
+        if (saved) {
+          targetsForYear = JSON.parse(saved);
+        }
+      } catch {}
+    }
+    if (!targetsForYear) {
+      targetsForYear = RAW_PPM_DATA;
+    }
+    setCurrentPpmTargets(targetsForYear);
+    setActivePpmTargets(targetsForYear, cleanYear);
+
+    // 2. Ambil dataset entri tahun yang dipilih
+    if (allRawEntries.length > 0) {
+      const yearDataset = getDatasetForYearFromEntries(allRawEntries, cleanYear, targetsForYear);
+      setData(yearDataset);
+      saveLocalEntriesToStorage(yearDataset, cleanYear);
+    } else {
+      const localSaved = loadLocalEntriesFromStorage(cleanYear);
+      if (localSaved && localSaved.length > 0) {
+        const synced = syncDataWithOfficialPpm(localSaved, targetsForYear, cleanYear);
+        setData(synced);
+      } else {
+        const master = generateMasterDatasetFromOfficialPpm(targetsForYear, cleanYear);
+        setData(master);
+        saveLocalEntriesToStorage(master, cleanYear);
+      }
+    }
+
+    setNotification(`Beralih ke data entri dan target PPM Tahun ${cleanYear}.`);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
+  // Handler tambah tahun baru
+  const handleCreateNewYear = async () => {
+    const cleanYear = newYearInput.trim();
+    if (!cleanYear.match(/^[0-9]{4}$/)) return;
+    setShowGlobalAddYearModal(false);
+    setNewYearInput('');
+
+    if (!availablePpmYears.includes(cleanYear)) {
+      setAvailablePpmYears(prev => [cleanYear, ...prev.filter(y => y !== cleanYear)].sort().reverse());
+    }
+
+    const initialTargets = JSON.parse(JSON.stringify(currentPpmTargets));
+    await savePpmTargetsToFirebase(cleanYear, initialTargets, currentUser?.username || 'ADMIN');
+    handleSwitchYear(cleanYear);
+  };
+
+  // Handler simpan target PPM oleh Admin ke Firebase & sinkronisasi ke seluruh sistem
+  const handleSavePpmTargets = async (year: string, newTargets: PpmTargetMap) => {
+    await savePpmTargetsToFirebase(year, newTargets, currentUser?.username || 'ADMIN');
+    setCurrentPpmTargets(newTargets);
+    setCurrentPpmYear(year);
+    if (!availablePpmYears.includes(year)) {
+      setAvailablePpmYears(prev => [year, ...prev.filter(y => y !== year)].sort().reverse());
+    }
+    // Re-sinkronisasi seluruh dataset dengan target PPM baru sehingga capaian %, sisa, dan grafik langsung terupdate
+    const synced = syncDataWithOfficialPpm(data, newTargets, year);
+    setData(synced);
+    saveLocalEntriesToStorage(synced, year);
+    setNotification(`Target PPM Tahun ${year} berhasil disimpan dan diintegrasikan ke seluruh Dashboard, Tabel, dan Entri.`);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
   const fetchData = async () => {
     // If local storage already has data, sync it with official PPM targets and keep entered achievements
     const localSaved = loadLocalEntriesFromStorage();
     if (localSaved && localSaved.length > 0) {
-      const synced = syncDataWithOfficialPpm(localSaved);
+      const synced = syncDataWithOfficialPpm(localSaved, currentPpmTargets);
       setData(synced);
       setIsLoading(false);
       return;
@@ -289,17 +443,17 @@ export default function App() {
       }
       const jsonData = await response.json();
       if (Array.isArray(jsonData) && jsonData.length > 0) {
-        const synced = syncDataWithOfficialPpm(jsonData);
+        const synced = syncDataWithOfficialPpm(jsonData, currentPpmTargets);
         setData(synced);
         saveLocalEntriesToStorage(synced);
       } else {
-        const master = generateMasterDatasetFromOfficialPpm();
+        const master = generateMasterDatasetFromOfficialPpm(currentPpmTargets);
         setData(master);
         saveLocalEntriesToStorage(master);
       }
     } catch (error: any) {
       // Gunakan dataset target PPM resmi Bojonegoro jika offline atau network issue
-      const master = generateMasterDatasetFromOfficialPpm();
+      const master = generateMasterDatasetFromOfficialPpm(currentPpmTargets);
       setData(master);
       saveLocalEntriesToStorage(master);
     } finally {
@@ -307,16 +461,17 @@ export default function App() {
     }
   };
 
-  // Kosongkan semua data yang sudah dientri (reset capaian ke 0) dengan konfirmasi
+  // Kosongkan semua data yang sudah dientri untuk tahun aktif
   const confirmEmptyAllEnteredData = () => {
     setData(prevData => {
       const emptied = emptyEnteredAchievements(prevData);
-      saveLocalEntriesToStorage(emptied);
+      saveLocalEntriesToStorage(emptied, currentPpmYear);
       return emptied;
     });
-    clearAllEntriesInFirebase(currentUser?.username || 'ADMIN').catch(() => {});
+    resetEnteredMonths(currentPpmYear);
+    clearAllEntriesInFirebase(currentUser?.username || 'ADMIN', currentPpmYear).catch(() => {});
     setShowEmptyConfirmModal(false);
-    setNotification("Semua data capaian yang sudah dientri berhasil dikosongkan secara real-time di Firebase. Target PPM resmi tetap tersimpan.");
+    setNotification(`Semua data entri capaian tahun ${currentPpmYear} berhasil dikosongkan secara real-time. Target PPM resmi tetap tersimpan.`);
     setTimeout(() => setNotification(null), 4000);
   };
 
@@ -359,9 +514,9 @@ export default function App() {
   // Callback when data is saved in EntrySidebar
   const handleDataSaved = (newData: RawDataRow[], savedKec: string, savedMonth: string) => {
     setData(newData);
-    saveLocalEntriesToStorage(newData);
+    saveLocalEntriesToStorage(newData, currentPpmYear);
     setSelectedMonth(savedMonth);
-    setNotification(`Data untuk ${savedKec} bulan ${savedMonth} berhasil disimpan.`);
+    setNotification(`Data untuk ${savedKec} bulan ${savedMonth} Tahun ${currentPpmYear} berhasil disimpan.`);
     setTimeout(() => setNotification(null), 3000);
   };
 
@@ -395,8 +550,8 @@ export default function App() {
       const kecName = row[0]?.toString() || "";
       const isJumlah = kecName.toUpperCase().includes("JUMLAH");
       const officialPpm = isJumlah
-        ? getOfficialPpm('JUMLAH', activeCategory)
-        : getOfficialPpm(kecName, activeCategory);
+        ? getOfficialPpm('JUMLAH', activeCategory, currentPpmTargets)
+        : getOfficialPpm(kecName, activeCategory, currentPpmTargets);
       const ppm = officialPpm > 0 ? officialPpm : (parseFloat(String(row[1])) || 0);
       const capaian = parseFloat(String(row[4])) || 0;
       const sisa = ppm - capaian;
@@ -413,7 +568,7 @@ export default function App() {
         isJumlah
       };
     });
-  }, [data, activeCategory, selectedMonth]);
+  }, [data, activeCategory, selectedMonth, currentPpmTargets]);
 
   const isSelectedMonthEntered = useMemo(() => {
     return isMonthEntered(selectedMonth, data);
@@ -428,7 +583,7 @@ export default function App() {
     const totalRow = filteredData.find(d => d.isJumlah);
 
     // Target PPM resmi dari Data PPM sebagai acuan
-    const officialTotalPpm = getOfficialPpm('JUMLAH', activeCategory);
+    const officialTotalPpm = getOfficialPpm('JUMLAH', activeCategory, currentPpmTargets);
     const totalPpm = officialTotalPpm > 0 ? officialTotalPpm : (totalRow?.ppm || 0);
     const totalCapaian = hasAnyCapaian ? (totalRow?.jumlah ?? list.reduce((s, r) => s + r.jumlah, 0)) : 0;
     const totalPercentage = totalPpm > 0 && hasAnyCapaian ? (totalCapaian / totalPpm) * 100 : 0;
@@ -451,7 +606,7 @@ export default function App() {
       total: aggregatedTotal,
       isEmpty: !hasAnyCapaian
     };
-  }, [filteredData, activeCategory, isSelectedMonthEntered]);
+  }, [filteredData, activeCategory, isSelectedMonthEntered, currentPpmTargets]);
 
   const chartData = useMemo(() => {
     return filteredData
@@ -478,6 +633,9 @@ export default function App() {
           setCurrentUser(user);
           if (user.kecamatan) {
             setEntryTargetKecamatan(user.kecamatan);
+          }
+          if (user.role !== 'admin' || user.kecamatan) {
+            setCurrentView(AppView.DASHBOARD);
           }
         }} 
       />
@@ -610,21 +768,23 @@ export default function App() {
                 </div>
               )}
             </button>
-            <button 
-              onClick={() => handleNavigateView(AppView.PPM)}
-              className={cn(
-                "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-2 cursor-pointer",
-                currentView === AppView.PPM ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
-              )}
-            >
-              <Target className="w-5 h-5 shrink-0 text-teal-400" />
-              {(sidebarOpen || isMobile) && (
-                <div className="ml-3 flex items-center justify-between flex-1">
-                  <span className="text-xs font-semibold">Data PPM</span>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">Target</span>
-                </div>
-              )}
-            </button>
+            {!isKecamatanUser && (
+              <button 
+                onClick={() => handleNavigateView(AppView.PPM)}
+                className={cn(
+                  "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-2 cursor-pointer",
+                  currentView === AppView.PPM ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
+                )}
+              >
+                <Target className="w-5 h-5 shrink-0 text-teal-400" />
+                {(sidebarOpen || isMobile) && (
+                  <div className="ml-3 flex items-center justify-between flex-1">
+                    <span className="text-xs font-semibold">Data PPM</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">Target</span>
+                  </div>
+                )}
+              </button>
+            )}
           </div>
         </nav>
 
@@ -717,12 +877,41 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* Pemilih Tahun Pelaporan Global */}
+            <div className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
+              <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Tahun:</span>
+              <select
+                id="header-year-select"
+                value={currentPpmYear}
+                onChange={(e) => {
+                  if (e.target.value === '__add_new__') {
+                    setShowGlobalAddYearModal(true);
+                  } else {
+                    handleSwitchYear(e.target.value);
+                  }
+                }}
+                className="bg-transparent text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
+                title="Pilih tahun entri & target PPM"
+              >
+                {availablePpmYears.map(yr => (
+                  <option key={yr} value={yr} className="bg-slate-800 text-slate-200 font-semibold">
+                    {yr}
+                  </option>
+                ))}
+                {currentUser?.role === 'admin' && (
+                  <option value="__add_new__" className="bg-slate-800 text-teal-400 font-bold">
+                    + Tambah Tahun...
+                  </option>
+                )}
+              </select>
+            </div>
+
             {/* Periode Selector, Refresh, dan Search hanya ditampilkan di Dashboard */}
             {currentView === AppView.DASHBOARD && (
               <>
                 <div className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
-                  <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Periode:</span>
                   <select
                     id="header-period-select"
@@ -1029,16 +1218,28 @@ export default function App() {
                   selectedMonth={selectedMonth}
                   setSelectedMonth={setSelectedMonth}
                   onOpenEntrySidebar={handleOpenEntrySidebar}
+                  currentPpmTargets={currentPpmTargets}
+                  currentYear={currentPpmYear}
+                  availableYears={availablePpmYears}
+                  onYearChange={handleSwitchYear}
                 />
               </motion.div>
-            ) : currentView === AppView.PPM ? (
+            ) : currentView === AppView.PPM && !isKecamatanUser ? (
               <motion.div
                 key="ppm-view"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
               >
-                <PpmView />
+                <PpmView 
+                  currentPpmTargets={currentPpmTargets}
+                  currentYear={currentPpmYear}
+                  availableYears={availablePpmYears}
+                  onSaveTargets={handleSavePpmTargets}
+                  onYearChange={handleSwitchYear}
+                  isAdmin={currentUser?.role === 'admin'}
+                  onOpenEntrySidebar={handleOpenEntrySidebar}
+                />
               </motion.div>
             ) : (
               <motion.div
@@ -1057,6 +1258,10 @@ export default function App() {
                   onResetToApiData={handleResetToApiData}
                   currentUser={currentUser}
                   lockedKecamatan={currentUser?.role === 'plkb' ? currentUser.kecamatan : undefined}
+                  currentPpmTargets={currentPpmTargets}
+                  currentYear={currentPpmYear}
+                  availableYears={availablePpmYears}
+                  onYearChange={handleSwitchYear}
                 />
               </motion.div>
             )}
@@ -1107,19 +1312,21 @@ export default function App() {
             <span className="text-[10px] tracking-tight">Entri Data</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => handleNavigateView(AppView.PPM)}
-            className={cn(
-              "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
-              currentView === AppView.PPM
-                ? "text-teal-400 bg-teal-500/15 font-bold"
-                : "text-slate-400 hover:text-slate-200"
-            )}
-          >
-            <Layers className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] tracking-tight">Data PPM</span>
-          </button>
+          {!isKecamatanUser && (
+            <button
+              type="button"
+              onClick={() => handleNavigateView(AppView.PPM)}
+              className={cn(
+                "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
+                currentView === AppView.PPM
+                  ? "text-teal-400 bg-teal-500/15 font-bold"
+                  : "text-slate-400 hover:text-slate-200"
+              )}
+            >
+              <Layers className="w-5 h-5 mb-0.5" />
+              <span className="text-[10px] tracking-tight">Data PPM</span>
+            </button>
+          )}
         </nav>
 
         {/* Footer Info (Desktop) */}
@@ -1141,6 +1348,8 @@ export default function App() {
         defaultMonth={selectedMonth}
         defaultKecamatan={entryTargetKecamatan}
         lockedKecamatan={currentUser?.role === 'plkb' ? currentUser?.kecamatan : undefined}
+        currentPpmTargets={currentPpmTargets}
+        currentYear={currentPpmYear}
       />
 
       {/* Modal Ubah Kata Sandi (Hanya Bisa Merubah Password) */}
@@ -1154,6 +1363,62 @@ export default function App() {
             setTimeout(() => setNotification(null), 4000);
           }}
         />
+      )}
+
+      {/* Modal Tambah Tahun Baru Global */}
+      {showGlobalAddYearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-scale-up">
+            <div className="flex items-center space-x-3 text-teal-400">
+              <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-100">Tambah Tahun Pelaporan Baru</h3>
+                <p className="text-[11px] text-slate-400">Target PPM & Entri per tahun</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Masukkan 4 digit tahun (contoh: <strong>2027</strong>). Setiap tahun memiliki target PPM dan entri bulanan tersendiri.
+            </p>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                Tahun Baru:
+              </label>
+              <input
+                type="text"
+                maxLength={4}
+                placeholder="2027"
+                value={newYearInput}
+                onChange={(e) => setNewYearInput(e.target.value.replace(/[^0-9]/g, ''))}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-base font-black text-center text-teal-300 tracking-widest focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-inner"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGlobalAddYearModal(false);
+                  setNewYearInput('');
+                }}
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={!newYearInput.trim().match(/^[0-9]{4}$/)}
+                onClick={handleCreateNewYear}
+                className="px-4 py-2 rounded-lg text-xs font-bold text-slate-950 bg-teal-400 hover:bg-teal-300 transition-colors shadow-lg shadow-teal-500/20 cursor-pointer disabled:opacity-50"
+              >
+                Buat Tahun {newYearInput || '...'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal Konfirmasi Kosongkan Data */}

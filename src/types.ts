@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type RawDataRow = [string, number, number, number, number, number, number, string, string];
+export type RawDataRow = [string, number, number, number, number, number, number, string, string, string?];
 
 export interface ProcessedData {
   kecamatan: string;

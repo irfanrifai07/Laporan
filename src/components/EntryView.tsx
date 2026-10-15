@@ -16,7 +16,7 @@ import {
   RawDataRow,
   AuthUser
 } from '../types';
-import { getOfficialPpm } from '../data/ppmData';
+import { getOfficialPpm, PpmTargetMap } from '../data/ppmData';
 
 interface EntryViewProps {
   data: RawDataRow[];
@@ -28,6 +28,10 @@ interface EntryViewProps {
   onResetToApiData: () => void;
   currentUser?: AuthUser | null;
   lockedKecamatan?: string;
+  currentPpmTargets?: PpmTargetMap;
+  currentYear?: string;
+  availableYears?: string[];
+  onYearChange?: (year: string) => void;
 }
 
 interface SingleMonthRow {
@@ -51,7 +55,11 @@ export const EntryView: React.FC<EntryViewProps> = ({
   onOpenEntrySidebar,
   onResetToApiData,
   currentUser,
-  lockedKecamatan
+  lockedKecamatan,
+  currentPpmTargets,
+  currentYear = '2026',
+  availableYears = ['2026', '2025'],
+  onYearChange
 }) => {
   // Local fallback if setters are not provided by parent
   const [localCategory, setLocalCategory] = useState(activeCategory);
@@ -125,7 +133,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
 
   // Baris JUMLAH (Total Kabupaten) - Target PPM selalu mengacu ke Data PPM resmi
   const totalRow = useMemo<SingleMonthRow>(() => {
-    const officialKabPpm = getOfficialPpm('JUMLAH', currentCategory);
+    const officialKabPpm = getOfficialPpm('JUMLAH', currentCategory, currentPpmTargets);
     const sumPpm = singleMonthDataList.reduce((s, r) => s + r.ppm, 0);
     const totalPpm = officialKabPpm > 0 ? officialKabPpm : sumPpm;
     const totalBlnLalu = singleMonthDataList.reduce((s, r) => s + r.blnLalu, 0);
@@ -244,9 +252,12 @@ export const EntryView: React.FC<EntryViewProps> = ({
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/30">
                   {currentCategory}
                 </span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
+                  Tahun {currentYear || '2026'}
+                </span>
               </div>
               <p className="text-xs text-slate-400">
-                Kabupaten Bojonegoro &bull; Periode: <span className="text-teal-400 font-bold">{currentMonth}</span>
+                Kabupaten Bojonegoro &bull; Periode: <span className="text-teal-400 font-bold">{currentMonth} {currentYear || '2026'}</span>
               </p>
             </div>
           </div>
@@ -286,6 +297,26 @@ export const EntryView: React.FC<EntryViewProps> = ({
                 {MONTHS.map(m => (
                   <option key={m} value={m} className="bg-slate-800 text-slate-200">
                     {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Pilihan Tahun Pelaporan */}
+            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300">
+              <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Tahun:</span>
+              <select
+                value={currentYear}
+                onChange={(e) => {
+                  if (onYearChange) {
+                    onYearChange(e.target.value);
+                  }
+                }}
+                className="bg-transparent text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
+              >
+                {availableYears.map(yr => (
+                  <option key={yr} value={yr} className="bg-slate-800 text-slate-200 font-semibold">
+                    {yr}
                   </option>
                 ))}
               </select>

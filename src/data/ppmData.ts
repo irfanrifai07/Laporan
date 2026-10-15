@@ -19,8 +19,11 @@ export interface KecamatanPpmTarget {
   total: number;
 }
 
-// Master Data PPM resmi sesuai dokumen PDF Kabupaten Bojonegoro
-export const RAW_PPM_DATA: Record<string, Record<ContraceptiveMethod, number>> = {
+export type PpmMethodTargets = Record<ContraceptiveMethod, number>;
+export type PpmTargetMap = Record<string, PpmMethodTargets>;
+
+// Master Data PPM resmi sesuai dokumen PDF Kabupaten Bojonegoro (Baseline Default)
+export const RAW_PPM_DATA: PpmTargetMap = {
   "NGRAHO":     { IUD: 38, MOW: 3,  MOP: 1, KONDOM: 9,  IMPLAN: 49, SUNTIK: 250, PIL: 106 },
   "TAMBAKREJO": { IUD: 4,  MOW: 2,  MOP: 0, KONDOM: 7,  IMPLAN: 76, SUNTIK: 373, PIL: 45 },
   "NGAMBON":    { IUD: 1,  MOW: 1,  MOP: 0, KONDOM: 3,  IMPLAN: 11, SUNTIK: 107, PIL: 17 },
@@ -51,40 +54,77 @@ export const RAW_PPM_DATA: Record<string, Record<ContraceptiveMethod, number>> =
   "GAYAM":      { IUD: 4,  MOW: 8,  MOP: 0, KONDOM: 8,  IMPLAN: 26, SUNTIK: 317, PIL: 20 }
 };
 
-// Ubah ke array terstruktur lengkap dengan kalkulasi MKJP, Non-MKJP, dan Total
-export const OFFICIAL_PPM_LIST: KecamatanPpmTarget[] = Object.entries(RAW_PPM_DATA).map(([kec, vals]) => {
-  const mkjp = vals.IUD + vals.MOW + vals.MOP + vals.IMPLAN;
-  const nonMkjp = vals.SUNTIK + vals.PIL + vals.KONDOM;
-  const total = mkjp + nonMkjp;
+/**
+ * Menghitung list target per kecamatan dari target map apapun
+ */
+export function calculatePpmTargetsList(targetMap: PpmTargetMap): KecamatanPpmTarget[] {
+  return Object.entries(targetMap).map(([kec, vals]) => {
+    const mkjp = (vals.IUD || 0) + (vals.MOW || 0) + (vals.MOP || 0) + (vals.IMPLAN || 0);
+    const nonMkjp = (vals.SUNTIK || 0) + (vals.PIL || 0) + (vals.KONDOM || 0);
+    const total = mkjp + nonMkjp;
+    return {
+      kecamatan: kec,
+      IUD: vals.IUD || 0,
+      MOW: vals.MOW || 0,
+      MOP: vals.MOP || 0,
+      KONDOM: vals.KONDOM || 0,
+      IMPLAN: vals.IMPLAN || 0,
+      SUNTIK: vals.SUNTIK || 0,
+      PIL: vals.PIL || 0,
+      mkjp,
+      nonMkjp,
+      total
+    };
+  });
+}
+
+/**
+ * Menghitung akumulasi total Kabupaten Bojonegoro dari daftar target kecamatan
+ */
+export function calculateKabupatenPpmTotal(list: KecamatanPpmTarget[]): KecamatanPpmTarget {
   return {
-    kecamatan: kec,
-    IUD: vals.IUD,
-    MOW: vals.MOW,
-    MOP: vals.MOP,
-    KONDOM: vals.KONDOM,
-    IMPLAN: vals.IMPLAN,
-    SUNTIK: vals.SUNTIK,
-    PIL: vals.PIL,
-    mkjp,
-    nonMkjp,
-    total
+    kecamatan: 'JUMLAH (KABUPATEN BOJONEGORO)',
+    IUD: list.reduce((s, r) => s + r.IUD, 0),
+    MOW: list.reduce((s, r) => s + r.MOW, 0),
+    MOP: list.reduce((s, r) => s + r.MOP, 0),
+    KONDOM: list.reduce((s, r) => s + r.KONDOM, 0),
+    IMPLAN: list.reduce((s, r) => s + r.IMPLAN, 0),
+    SUNTIK: list.reduce((s, r) => s + r.SUNTIK, 0),
+    PIL: list.reduce((s, r) => s + r.PIL, 0),
+    mkjp: list.reduce((s, r) => s + r.mkjp, 0),
+    nonMkjp: list.reduce((s, r) => s + r.nonMkjp, 0),
+    total: list.reduce((s, r) => s + r.total, 0),
   };
-});
+}
+
+// In-Memory store untuk target PPM yang sedang aktif (dapat diubah oleh Admin)
+let activePpmTargetsStore: PpmTargetMap = { ...RAW_PPM_DATA };
+let activePpmYearStore: string = '2026';
+
+export function getActivePpmTargets(): PpmTargetMap {
+  return activePpmTargetsStore;
+}
+
+export function setActivePpmTargets(targets: PpmTargetMap, year?: string): void {
+  activePpmTargetsStore = { ...targets };
+  if (year) {
+    activePpmYearStore = year;
+  }
+}
+
+export function getActivePpmYear(): string {
+  return activePpmYearStore;
+}
+
+export function setActivePpmYear(year: string): void {
+  activePpmYearStore = year;
+}
+
+// Ubah ke array terstruktur lengkap dengan kalkulasi MKJP, Non-MKJP, dan Total
+export const OFFICIAL_PPM_LIST: KecamatanPpmTarget[] = calculatePpmTargetsList(RAW_PPM_DATA);
 
 // Total Kabupaten Bojonegoro
-export const TOTAL_BOJONEGORO_PPM: KecamatanPpmTarget = {
-  kecamatan: 'JUMLAH (KABUPATEN BOJONEGORO)',
-  IUD: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.IUD, 0),
-  MOW: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.MOW, 0),
-  MOP: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.MOP, 0),
-  KONDOM: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.KONDOM, 0),
-  IMPLAN: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.IMPLAN, 0),
-  SUNTIK: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.SUNTIK, 0),
-  PIL: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.PIL, 0),
-  mkjp: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.mkjp, 0),
-  nonMkjp: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.nonMkjp, 0),
-  total: OFFICIAL_PPM_LIST.reduce((s, r) => s + r.total, 0),
-};
+export const TOTAL_BOJONEGORO_PPM: KecamatanPpmTarget = calculateKabupatenPpmTotal(OFFICIAL_PPM_LIST);
 
 /**
  * Menentukan apakah baris merupakan baris total akumulasi Kabupaten Bojonegoro.
@@ -108,43 +148,57 @@ export function isKabupatenTotalRow(kecamatan: string): boolean {
 
 /**
  * Mendapatkan target PPM resmi berdasarkan nama kecamatan dan metode/kategori.
- * Data PPM resmi dari TOTAL_BOJONEGORO_PPM dan RAW_PPM_DATA adalah sumber kebenaran tunggal (single source of truth).
+ * Mendukung kustomisasi target per tahun secara dinamis.
  */
-export function getOfficialPpm(kecamatan: string, methodOrCategory: string): number {
+export function getOfficialPpm(
+  kecamatan: string, 
+  methodOrCategory: string,
+  customTargets?: PpmTargetMap
+): number {
   const cleanKec = kecamatan ? kecamatan.toUpperCase().trim() : '';
   const cleanCat = methodOrCategory ? methodOrCategory.toUpperCase().trim() : '';
+  const targets = customTargets || activePpmTargetsStore;
 
   // 1. Jika baris JUMLAH / AKUMULASI KABUPATEN BOJONEGORO
   if (isKabupatenTotalRow(cleanKec)) {
-    if (cleanCat === 'IUD') return TOTAL_BOJONEGORO_PPM.IUD;
-    if (cleanCat === 'MOW') return TOTAL_BOJONEGORO_PPM.MOW;
-    if (cleanCat === 'MOP') return TOTAL_BOJONEGORO_PPM.MOP;
-    if (cleanCat === 'KONDOM') return TOTAL_BOJONEGORO_PPM.KONDOM;
-    if (cleanCat === 'IMPLAN') return TOTAL_BOJONEGORO_PPM.IMPLAN;
-    if (cleanCat === 'SUNTIK') return TOTAL_BOJONEGORO_PPM.SUNTIK;
-    if (cleanCat === 'PIL') return TOTAL_BOJONEGORO_PPM.PIL;
-    if (cleanCat === 'MKJP') return TOTAL_BOJONEGORO_PPM.mkjp;
-    if (cleanCat === 'NON MKJP') return TOTAL_BOJONEGORO_PPM.nonMkjp;
-    if (cleanCat === 'SEMUA METODE') return TOTAL_BOJONEGORO_PPM.total;
-    return TOTAL_BOJONEGORO_PPM.total;
+    const list = calculatePpmTargetsList(targets);
+    const kabTotal = calculateKabupatenPpmTotal(list);
+
+    if (cleanCat === 'IUD') return kabTotal.IUD;
+    if (cleanCat === 'MOW') return kabTotal.MOW;
+    if (cleanCat === 'MOP') return kabTotal.MOP;
+    if (cleanCat === 'KONDOM') return kabTotal.KONDOM;
+    if (cleanCat === 'IMPLAN') return kabTotal.IMPLAN;
+    if (cleanCat === 'SUNTIK') return kabTotal.SUNTIK;
+    if (cleanCat === 'PIL') return kabTotal.PIL;
+    if (cleanCat === 'MKJP') return kabTotal.mkjp;
+    if (cleanCat === 'NON MKJP') return kabTotal.nonMkjp;
+    if (cleanCat === 'SEMUA METODE') return kabTotal.total;
+    return kabTotal.total;
   }
 
   // 2. Jika kecamatan spesifik (termasuk Kecamatan BOJONEGORO)
-  const kecTarget = RAW_PPM_DATA[cleanKec];
+  const kecTarget = targets[cleanKec] || RAW_PPM_DATA[cleanKec];
   if (!kecTarget) return 0;
 
-  if (cleanCat === 'IUD') return kecTarget.IUD;
-  if (cleanCat === 'MOW') return kecTarget.MOW;
-  if (cleanCat === 'MOP') return kecTarget.MOP;
-  if (cleanCat === 'KONDOM') return kecTarget.KONDOM;
-  if (cleanCat === 'IMPLAN') return kecTarget.IMPLAN;
-  if (cleanCat === 'SUNTIK') return kecTarget.SUNTIK;
-  if (cleanCat === 'PIL') return kecTarget.PIL;
-  if (cleanCat === 'MKJP') return kecTarget.IUD + kecTarget.MOW + kecTarget.MOP + kecTarget.IMPLAN;
-  if (cleanCat === 'NON MKJP') return kecTarget.SUNTIK + kecTarget.PIL + kecTarget.KONDOM;
+  if (cleanCat === 'IUD') return kecTarget.IUD || 0;
+  if (cleanCat === 'MOW') return kecTarget.MOW || 0;
+  if (cleanCat === 'MOP') return kecTarget.MOP || 0;
+  if (cleanCat === 'KONDOM') return kecTarget.KONDOM || 0;
+  if (cleanCat === 'IMPLAN') return kecTarget.IMPLAN || 0;
+  if (cleanCat === 'SUNTIK') return kecTarget.SUNTIK || 0;
+  if (cleanCat === 'PIL') return kecTarget.PIL || 0;
+  if (cleanCat === 'MKJP') {
+    return (kecTarget.IUD || 0) + (kecTarget.MOW || 0) + (kecTarget.MOP || 0) + (kecTarget.IMPLAN || 0);
+  }
+  if (cleanCat === 'NON MKJP') {
+    return (kecTarget.SUNTIK || 0) + (kecTarget.PIL || 0) + (kecTarget.KONDOM || 0);
+  }
   if (cleanCat === 'SEMUA METODE') {
-    return (kecTarget.IUD + kecTarget.MOW + kecTarget.MOP + kecTarget.IMPLAN) +
-           (kecTarget.SUNTIK + kecTarget.PIL + kecTarget.KONDOM);
+    return (
+      (kecTarget.IUD || 0) + (kecTarget.MOW || 0) + (kecTarget.MOP || 0) + (kecTarget.IMPLAN || 0) +
+      (kecTarget.SUNTIK || 0) + (kecTarget.PIL || 0) + (kecTarget.KONDOM || 0)
+    );
   }
 
   return 0;

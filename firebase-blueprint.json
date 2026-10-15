@@ -38,6 +38,13 @@
           "maxLength": 20,
           "pattern": "^[a-zA-Z]+$"
         },
+        "tahun": {
+          "type": "string",
+          "description": "Reporting year (e.g., 2026, 2025).",
+          "minLength": 4,
+          "maxLength": 4,
+          "pattern": "^[0-9]{4}$"
+        },
         "MOW_lalu": {
           "type": "number",
           "description": "Previous month cumulative achievement for MOW."
@@ -180,6 +187,43 @@
         }
       },
       "required": ["appId", "username", "customPassword", "updatedAt"]
+    },
+    "KbPpmTarget": {
+      "title": "KbPpmTarget",
+      "description": "Official annual PPM targets per kecamatan and contraceptive method for Kabupaten Bojonegoro.",
+      "type": "object",
+      "properties": {
+        "appId": {
+          "type": "string",
+          "description": "Application namespace identifier.",
+          "enum": ["bojonegoro-kb-v1"],
+          "minLength": 1,
+          "maxLength": 32,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "year": {
+          "type": "string",
+          "description": "Four-digit reporting target year (e.g., 2026).",
+          "pattern": "^[0-9]{4}$"
+        },
+        "targets": {
+          "type": "object",
+          "description": "Map of subdistricts to their 7 contraceptive method targets."
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "Username of the administrator who updated targets.",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\- ]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the target update."
+        }
+      },
+      "required": ["appId", "year", "targets", "updatedBy", "updatedAt"]
     }
   },
   "firestore": {
@@ -194,6 +238,10 @@
     "/kb_accounts/{accountId}": {
       "schema": { "$ref": "#/entities/KbAccount" },
       "description": "Stores real-time updated passwords for official Kecamatan and Admin accounts."
+    },
+    "/kb_ppm_targets/{targetId}": {
+      "schema": { "$ref": "#/entities/KbPpmTarget" },
+      "description": "Stores real-time official annual PPM targets per year for all 28 kecamatans in Kabupaten Bojonegoro."
     }
   }
 }

@@ -16,7 +16,7 @@ import {
   KECAMATAN_LIST 
 } from '../types';
 import { exportTableToExcel } from '../utils/excelExport';
-import { getOfficialPpm } from '../data/ppmData';
+import { getOfficialPpm, PpmTargetMap } from '../data/ppmData';
 import { isMonthEntered } from '../utils/dataManager';
 
 interface TableViewProps {
@@ -26,6 +26,10 @@ interface TableViewProps {
   selectedMonth: string;
   setSelectedMonth: (month: string) => void;
   onOpenEntrySidebar?: (kecamatan?: string) => void;
+  currentPpmTargets?: PpmTargetMap;
+  currentYear?: string;
+  availableYears?: string[];
+  onYearChange?: (year: string) => void;
 }
 
 interface YearlyRow {
@@ -61,9 +65,13 @@ export const TableView: React.FC<TableViewProps> = ({
   selectedMonth,
   setSelectedMonth,
   onOpenEntrySidebar,
+  currentPpmTargets,
+  currentYear = '2026',
+  availableYears = ['2026', '2025'],
+  onYearChange,
 }) => {
   // Mode tampilan: default 'month' sesuai tampilan tabel awal
-  const [tableMode] = useState<'year' | 'month'>('month');
+  const [tableMode] = useState<'month' | 'year'>('month');
 
   // Hanya SATU filter pencarian tunggal sesuai permintaan pengguna
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,7 +85,7 @@ export const TableView: React.FC<TableViewProps> = ({
     // Olah untuk setiap kecamatan di Bojonegoro
     const districtRows: YearlyRow[] = KECAMATAN_LIST.map(kec => {
       // Ambil PPM target resmi dari Data PPM
-      const officialPpm = getOfficialPpm(kec, activeCategory);
+      const officialPpm = getOfficialPpm(kec, activeCategory, currentPpmTargets);
       const sampleRow = data.find(r => 
         r[0]?.toString().toUpperCase().trim() === kec.toUpperCase().trim() &&
         (matchCat === 'SEMUA METODE' 
@@ -117,7 +125,7 @@ export const TableView: React.FC<TableViewProps> = ({
     });
 
     // Hitung baris JUMLAH KABUPATEN - selalu mengacu pada Data PPM resmi
-    const officialKabPpm = getOfficialPpm('JUMLAH', activeCategory);
+    const officialKabPpm = getOfficialPpm('JUMLAH', activeCategory, currentPpmTargets);
     const kabPpm = officialKabPpm > 0 ? officialKabPpm : districtRows.reduce((s, r) => s + r.ppm, 0);
     const kabMonthly: { [month: string]: number } = {};
     MONTHS.forEach(m => {
@@ -139,7 +147,7 @@ export const TableView: React.FC<TableViewProps> = ({
     };
 
     return [...districtRows, totalRow];
-  }, [data, activeCategory]);
+  }, [data, activeCategory, currentPpmTargets]);
 
   // Saring data 12 bulan menggunakan SATU filter pencarian
   const displayedYearlyRows = useMemo(() => {
@@ -207,8 +215,8 @@ export const TableView: React.FC<TableViewProps> = ({
         const kecName = row[0]?.toString() || '';
         const isJumlah = kecName.toUpperCase().includes('JUMLAH');
         const officialTarget = isJumlah 
-          ? getOfficialPpm('JUMLAH', activeCategory)
-          : getOfficialPpm(kecName, activeCategory);
+          ? getOfficialPpm('JUMLAH', activeCategory, currentPpmTargets)
+          : getOfficialPpm(kecName, activeCategory, currentPpmTargets);
         const ppm = officialTarget > 0 ? officialTarget : (parseFloat(String(row[1])) || 0);
         
         // Jika bulan belum dientri, capaian harus kosong (0)
@@ -230,7 +238,7 @@ export const TableView: React.FC<TableViewProps> = ({
           isJumlah
         };
       });
-  }, [data, activeCategory, selectedMonth, isSelectedMonthEntered]);
+  }, [data, activeCategory, selectedMonth, isSelectedMonthEntered, currentPpmTargets]);
 
   const displayedSingleMonthRows = useMemo(() => {
     if (!searchQuery.trim()) return singleMonthDataList;
@@ -318,9 +326,12 @@ export const TableView: React.FC<TableViewProps> = ({
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/30">
                   {activeCategory}
                 </span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
+                  Tahun {currentYear || '2026'}
+                </span>
               </div>
               <p className="text-xs text-slate-400">
-                Kabupaten Bojonegoro &bull; Periode: <span className="text-teal-400 font-bold">{selectedMonth}</span>
+                Kabupaten Bojonegoro &bull; Periode: <span className="text-teal-400 font-bold">{selectedMonth} {currentYear || '2026'}</span>
               </p>
             </div>
           </div>
@@ -360,6 +371,26 @@ export const TableView: React.FC<TableViewProps> = ({
                 {MONTHS.map(m => (
                   <option key={m} value={m} className="bg-slate-800 text-slate-200">
                     {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Pilihan Tahun Pelaporan */}
+            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300">
+              <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Tahun:</span>
+              <select
+                value={currentYear}
+                onChange={(e) => {
+                  if (onYearChange) {
+                    onYearChange(e.target.value);
+                  }
+                }}
+                className="bg-transparent text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
+              >
+                {availableYears.map(yr => (
+                  <option key={yr} value={yr} className="bg-slate-800 text-slate-200 font-semibold">
+                    {yr}
                   </option>
                 ))}
               </select>

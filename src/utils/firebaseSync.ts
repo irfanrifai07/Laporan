@@ -23,7 +23,12 @@ import {
   METHOD_KEYS,
   ContraceptiveMethod,
 } from '../types';
-import { getOfficialPpm } from '../data/ppmData';
+import { 
+  getOfficialPpm, 
+  PpmTargetMap, 
+  RAW_PPM_DATA, 
+  setActivePpmTargets 
+} from '../data/ppmData';
 import {
   syncDataWithOfficialPpm,
   getEnteredMonths,
@@ -39,6 +44,7 @@ export interface FirestoreKbEntryDoc {
   appId: string;
   kecamatan: string;
   bulan: string;
+  year?: string;
   MOW_lalu: number;
   MOW_ini: number;
   MOP_lalu: number;
@@ -72,11 +78,13 @@ function buildDocPayloadForKecamatanMonth(
   data: RawDataRow[],
   kecamatan: string,
   bulan: string,
-  updatedBy: string
+  updatedBy: string,
+  year = '2026'
 ): Record<string, unknown> | null {
   const cleanKec = kecamatan.toUpperCase().trim();
   if (!KECAMATAN_LIST.includes(cleanKec)) return null;
   if (!MONTHS.includes(bulan)) return null;
+  const cleanYear = (year || data?.[0]?.[9] || '2026').toString().trim();
 
   const findMethodValues = (method: ContraceptiveMethod) => {
     const row = data.find(
@@ -103,6 +111,7 @@ function buildDocPayloadForKecamatanMonth(
     appId: APP_ID,
     kecamatan: cleanKec,
     bulan,
+    year: cleanYear,
     MOW_lalu: mow.lalu,
     MOW_ini: mow.ini,
     MOP_lalu: mop.lalu,
@@ -127,20 +136,30 @@ function buildDocPayloadForKecamatanMonth(
  */
 export function convertFirestoreEntriesToDataset(
   entries: FirestoreKbEntryDoc[],
-  enteredMonthsFromMeta?: string[]
+  enteredMonthsFromMeta?: string[],
+  customTargets?: PpmTargetMap,
+  targetYear = '2026'
 ): RawDataRow[] {
+  const cleanYear = (targetYear || '2026').trim();
+
   if (Array.isArray(enteredMonthsFromMeta)) {
     try {
       const validMonths = enteredMonthsFromMeta.filter((m) => MONTHS.includes(m)).slice(0, 12);
-      localStorage.setItem(LOCAL_STORAGE_ENTERED_MONTHS, JSON.stringify(validMonths));
+      localStorage.setItem(`${LOCAL_STORAGE_ENTERED_MONTHS}_${cleanYear}`, JSON.stringify(validMonths));
+      if (cleanYear === '2026') {
+        localStorage.setItem(LOCAL_STORAGE_ENTERED_MONTHS, JSON.stringify(validMonths));
+      }
     } catch {
       // ignore storage error
     }
   }
 
   const rawRows: RawDataRow[] = [];
+  const filteredEntries = entries.filter(
+    (d) => (d.year || '2026').trim() === cleanYear
+  );
 
-  entries.forEach((docData) => {
+  filteredEntries.forEach((docData) => {
     const kec = docData.kecamatan?.toUpperCase().trim();
     const bulan = docData.bulan?.trim();
     if (!kec || !bulan || !KECAMATAN_LIST.includes(kec) || !MONTHS.includes(bulan)) {
@@ -163,19 +182,19 @@ export function convertFirestoreEntriesToDataset(
       if (ini > 0 || lalu > 0) {
         hasActiveValue = true;
       }
-      const ppm = getOfficialPpm(kec, method);
+      const ppm = getOfficialPpm(kec, method, customTargets);
       const jumlah = lalu + ini;
       const percentage = ppm > 0 ? (jumlah / ppm) * 100 : 0;
       const sisa = ppm - jumlah;
-      rawRows.push([kec, ppm, lalu, ini, jumlah, percentage, sisa, method, bulan]);
+      rawRows.push([kec, ppm, lalu, ini, jumlah, percentage, sisa, method, bulan, cleanYear]);
     });
 
     if (hasActiveValue && (!enteredMonthsFromMeta || enteredMonthsFromMeta.length === 0)) {
-      markMonthAsEntered(bulan);
+      markMonthAsEntered(bulan, cleanYear);
     }
   });
 
-  return syncDataWithOfficialPpm(rawRows);
+  return syncDataWithOfficialPpm(rawRows, customTargets, cleanYear);
 }
 
 /**
@@ -185,12 +204,14 @@ export async function syncKecamatanMonthToFirebase(
   updatedData: RawDataRow[],
   kecamatan: string,
   bulan: string,
-  updatedBy = 'ADMIN'
+  updatedBy = 'ADMIN',
+  year = '2026'
 ): Promise<void> {
   const cleanKec = kecamatan.toUpperCase().trim();
   if (!KECAMATAN_LIST.includes(cleanKec) || !MONTHS.includes(bulan)) return;
+  const cleanYear = (year || updatedData?.[0]?.[9] || '2026').toString().trim();
 
-  const enteredMonths = getEnteredMonths(updatedData)
+  const enteredMonths = getEnteredMonths(updatedData, cleanYear)
     .filter((m) => MONTHS.includes(m))
     .slice(0, 12);
 
@@ -211,24 +232,25 @@ export async function syncKecamatanMonthToFirebase(
   const batch = writeBatch(db);
 
   monthsToSync.forEach((m) => {
-    const payload = buildDocPayloadForKecamatanMonth(updatedData, cleanKec, m, updatedBy);
+    const payload = buildDocPayloadForKecamatanMonth(updatedData, cleanKec, m, updatedBy, cleanYear);
     if (payload) {
-      const docId = `${cleanKec}_${m}`;
+      const docId = `${cleanKec}_${m}_${cleanYear}`;
       batch.set(doc(db, 'kb_entries', docId), payload);
     }
   });
 
   batch.set(doc(db, 'kb_meta', 'config'), {
     appId: APP_ID,
+    activeYear: cleanYear,
     enteredMonths,
     updatedBy: sanitizeUpdatedBy(updatedBy),
     updatedAt: serverTimestamp(),
-  });
+  }, { merge: true });
 
   try {
     await batch.commit();
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `kb_entries/${cleanKec}_${bulan}`);
+    handleFirestoreError(error, OperationType.WRITE, `kb_entries/${cleanKec}_${bulan}_${cleanYear}`);
   }
 }
 
@@ -237,11 +259,13 @@ export async function syncKecamatanMonthToFirebase(
  */
 export async function seedDatasetToFirebaseIfNeeded(
   localData: RawDataRow[],
-  updatedBy = 'ADMIN'
+  updatedBy = 'ADMIN',
+  year = '2026'
 ): Promise<void> {
   if (!Array.isArray(localData) || localData.length === 0) return;
+  const cleanYear = (year || localData?.[0]?.[9] || '2026').toString().trim();
 
-  const enteredMonths = getEnteredMonths(localData)
+  const enteredMonths = getEnteredMonths(localData, cleanYear)
     .filter((m) => MONTHS.includes(m))
     .slice(0, 12);
 
@@ -251,13 +275,13 @@ export async function seedDatasetToFirebaseIfNeeded(
 
   enteredMonths.forEach((bulan) => {
     KECAMATAN_LIST.forEach((kec) => {
-      const payload = buildDocPayloadForKecamatanMonth(localData, kec, bulan, updatedBy);
+      const payload = buildDocPayloadForKecamatanMonth(localData, kec, bulan, updatedBy, cleanYear);
       if (payload) {
         const hasAny = METHOD_KEYS.some(
           (m) => (Number(payload[`${m}_ini`]) || 0) > 0 || (Number(payload[`${m}_lalu`]) || 0) > 0
         );
         if (hasAny) {
-          payloads.push({ docId: `${kec}_${bulan}`, payload });
+          payloads.push({ docId: `${kec}_${bulan}_${cleanYear}`, payload });
         }
       }
     });
@@ -272,10 +296,11 @@ export async function seedDatasetToFirebaseIfNeeded(
     });
     batch.set(doc(db, 'kb_meta', 'config'), {
       appId: APP_ID,
+      activeYear: cleanYear,
       enteredMonths,
       updatedBy: sanitizeUpdatedBy(updatedBy),
       updatedAt: serverTimestamp(),
-    });
+    }, { merge: true });
     await batch.commit();
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, 'kb_entries');
@@ -283,23 +308,32 @@ export async function seedDatasetToFirebaseIfNeeded(
 }
 
 /**
- * Hapus / kosongkan seluruh entri capaian di Firestore secara real-time
+ * Hapus / kosongkan entri capaian tahun tertentu di Firestore secara real-time
  */
-export async function clearAllEntriesInFirebase(updatedBy = 'ADMIN'): Promise<void> {
+export async function clearAllEntriesInFirebase(
+  updatedBy = 'ADMIN',
+  year = '2026'
+): Promise<void> {
+  const cleanYear = (year || '2026').trim();
   const path = 'kb_entries';
   try {
     const q = query(collection(db, path), where('appId', '==', APP_ID));
     const snapshot = await getDocs(q);
     const batch = writeBatch(db);
     snapshot.docs.forEach((docSnap) => {
-      batch.delete(docSnap.ref);
+      const data = docSnap.data();
+      const docYear = (data.year || '2026').toString().trim();
+      if (docYear === cleanYear) {
+        batch.delete(docSnap.ref);
+      }
     });
     batch.set(doc(db, 'kb_meta', 'config'), {
       appId: APP_ID,
+      activeYear: cleanYear,
       enteredMonths: [],
       updatedBy: sanitizeUpdatedBy(updatedBy),
       updatedAt: serverTimestamp(),
-    });
+    }, { merge: true });
     await batch.commit();
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
@@ -330,41 +364,106 @@ export async function syncPasswordToFirebase(
 }
 
 /**
- * Berlangganan (subscribe) perubahan data capaian KB secara real-time dari Cloud Firestore
+ * Simpan target PPM tahunan resmi ke Firestore secara real-time
+ */
+export async function savePpmTargetsToFirebase(
+  year: string,
+  targets: PpmTargetMap,
+  updatedBy = 'ADMIN'
+): Promise<void> {
+  const cleanYear = (year || '2026').trim().slice(0, 4);
+  if (!cleanYear.match(/^[0-9]{4}$/)) return;
+
+  const docId = `targets_${cleanYear}`;
+  const path = `kb_ppm_targets/${docId}`;
+  const payload = {
+    appId: APP_ID,
+    year: cleanYear,
+    targets,
+    updatedBy: sanitizeUpdatedBy(updatedBy),
+    updatedAt: serverTimestamp(),
+  };
+
+  try {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'kb_ppm_targets', docId), payload);
+    batch.set(doc(db, 'kb_meta', 'config'), {
+      appId: APP_ID,
+      activeYear: cleanYear,
+      enteredMonths: getEnteredMonths(),
+      updatedBy: sanitizeUpdatedBy(updatedBy),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    await batch.commit();
+
+    try {
+      localStorage.setItem(`laporan_kb_ppm_targets_${cleanYear}`, JSON.stringify(targets));
+      localStorage.setItem('laporan_kb_active_ppm_year', cleanYear);
+    } catch {}
+
+    setActivePpmTargets(targets, cleanYear);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+/**
+ * Berlangganan (subscribe) perubahan data capaian KB dan Target PPM secara real-time dari Cloud Firestore
  */
 export function subscribeToRealtimeKbData(
-  onDataChange: (syncedDataset: RawDataRow[], lastUpdatedBy?: string) => void,
+  onDataChange: (syncedDataset: RawDataRow[], lastUpdatedBy?: string, activeYear?: string) => void,
   onSyncStatusChange?: (isConnected: boolean) => void,
-  initialLocalData?: RawDataRow[]
+  initialLocalData?: RawDataRow[],
+  onPpmTargetsLoaded?: (targets: PpmTargetMap, year: string, availableYears: string[]) => void,
+  onEntriesLoaded?: (entries: FirestoreKbEntryDoc[], allYears: string[]) => void
 ): Unsubscribe {
   let latestEntries: FirestoreKbEntryDoc[] = [];
   let latestEnteredMonths: string[] | undefined = undefined;
+  let latestActiveYear = '2026';
+  let latestPpmTargets: PpmTargetMap = { ...RAW_PPM_DATA };
+  let yearMap = new Map<string, PpmTargetMap>();
   let hasSeededInitial = false;
   let metaLoaded = false;
   let entriesLoaded = false;
 
+  const getAvailableYears = () => {
+    const yrSet = new Set<string>(yearMap.keys());
+    latestEntries.forEach((e) => {
+      if (e.year && e.year.match(/^[0-9]{4}$/)) {
+        yrSet.add(e.year);
+      }
+    });
+    yrSet.add('2026');
+    return Array.from(yrSet).sort().reverse();
+  };
+
   const recomputeAndNotify = (lastUpdatedBy?: string) => {
     if (!entriesLoaded) return;
 
-    if (latestEntries.length === 0 && (!latestEnteredMonths || latestEnteredMonths.length === 0)) {
-      if (!hasSeededInitial && initialLocalData && initialLocalData.length > 0) {
-        const localEntered = getEnteredMonths(initialLocalData);
+    const availableYears = getAvailableYears();
+    onEntriesLoaded?.(latestEntries, availableYears);
+
+    const yearEntries = latestEntries.filter((e) => (e.year || '2026').trim() === latestActiveYear);
+
+    if (yearEntries.length === 0 && (!latestEnteredMonths || latestEnteredMonths.length === 0)) {
+      if (!hasSeededInitial && initialLocalData && initialLocalData.length > 0 && latestActiveYear === '2026') {
+        const localEntered = getEnteredMonths(initialLocalData, latestActiveYear);
         if (localEntered.length > 0) {
           hasSeededInitial = true;
-          seedDatasetToFirebaseIfNeeded(initialLocalData, 'ADMIN').catch(() => {});
+          seedDatasetToFirebaseIfNeeded(initialLocalData, 'ADMIN', latestActiveYear).catch(() => {});
           return;
         }
       }
-      resetEnteredMonths();
-      const emptyMaster = convertFirestoreEntriesToDataset([], []);
-      saveLocalEntriesToStorage(emptyMaster);
-      onDataChange(emptyMaster, lastUpdatedBy);
+      resetEnteredMonths(latestActiveYear);
+      const emptyMaster = convertFirestoreEntriesToDataset([], [], latestPpmTargets, latestActiveYear);
+      saveLocalEntriesToStorage(emptyMaster, latestActiveYear);
+      onDataChange(emptyMaster, lastUpdatedBy, latestActiveYear);
       return;
     }
 
-    const synced = convertFirestoreEntriesToDataset(latestEntries, latestEnteredMonths);
-    saveLocalEntriesToStorage(synced);
-    onDataChange(synced, lastUpdatedBy);
+    const synced = convertFirestoreEntriesToDataset(latestEntries, latestEnteredMonths, latestPpmTargets, latestActiveYear);
+    saveLocalEntriesToStorage(synced, latestActiveYear);
+    onDataChange(synced, lastUpdatedBy, latestActiveYear);
   };
 
   const metaRef = doc(db, 'kb_meta', 'config');
@@ -377,6 +476,16 @@ export function subscribeToRealtimeKbData(
         if (Array.isArray(data.enteredMonths)) {
           latestEnteredMonths = data.enteredMonths.filter((m: unknown) => typeof m === 'string');
         }
+        if (typeof data.activeYear === 'string' && data.activeYear.match(/^[0-9]{4}$/)) {
+          latestActiveYear = data.activeYear;
+          if (yearMap.has(latestActiveYear)) {
+            latestPpmTargets = yearMap.get(latestActiveYear)!;
+            setActivePpmTargets(latestPpmTargets, latestActiveYear);
+            const availableYears = Array.from(yearMap.keys()).sort().reverse();
+            if (!availableYears.includes('2026')) availableYears.unshift('2026');
+            onPpmTargetsLoaded?.(latestPpmTargets, latestActiveYear, availableYears);
+          }
+        }
         recomputeAndNotify(typeof data.updatedBy === 'string' ? data.updatedBy : undefined);
       } else if (entriesLoaded) {
         recomputeAndNotify();
@@ -385,6 +494,37 @@ export function subscribeToRealtimeKbData(
     (error) => {
       onSyncStatusChange?.(false);
       handleFirestoreError(error, OperationType.GET, 'kb_meta/config');
+    }
+  );
+
+  const targetsQuery = query(collection(db, 'kb_ppm_targets'), where('appId', '==', APP_ID));
+  const unsubTargets = onSnapshot(
+    targetsQuery,
+    (querySnap) => {
+      yearMap = new Map<string, PpmTargetMap>();
+      querySnap.docs.forEach((d) => {
+        const docData = d.data() as { year?: string; targets?: PpmTargetMap };
+        if (docData.year && docData.targets) {
+          yearMap.set(docData.year, docData.targets);
+        }
+      });
+
+      const availableYears = Array.from(yearMap.keys()).sort().reverse();
+      if (!availableYears.includes('2026')) {
+        availableYears.unshift('2026');
+      }
+
+      const activeTargets = yearMap.get(latestActiveYear) || RAW_PPM_DATA;
+      latestPpmTargets = activeTargets;
+      setActivePpmTargets(activeTargets, latestActiveYear);
+      onPpmTargetsLoaded?.(activeTargets, latestActiveYear, availableYears);
+
+      if (entriesLoaded) {
+        recomputeAndNotify();
+      }
+    },
+    (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'kb_ppm_targets');
     }
   );
 
@@ -438,7 +578,20 @@ export function subscribeToRealtimeKbData(
 
   return () => {
     unsubMeta();
+    unsubTargets();
     unsubEntries();
     unsubAccounts();
   };
+}
+
+/**
+ * Mendapatkan dataset terstruktur untuk tahun tertentu dari kumpulan dokumen Firestore
+ */
+export function getDatasetForYearFromEntries(
+  entries: FirestoreKbEntryDoc[],
+  year: string,
+  targets: PpmTargetMap,
+  enteredMonths?: string[]
+): RawDataRow[] {
+  return convertFirestoreEntriesToDataset(entries, enteredMonths, targets, year);
 }
