@@ -62,7 +62,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   const activeKecamatan = lockedKecamatan || selectedKecamatan;
   const [selectedBulan, setSelectedBulan] = useState(defaultMonth);
   const [entries, setEntries] = useState<AllMethodsEntry>(getInitialMethodEntry());
-  const [activeTab, setActiveTab] = useState<'all' | ContraceptiveMethod>('all');
+  const [activeTab, setActiveTab] = useState<ContraceptiveMethod>('MOW');
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [lastSavedTime, setLastSavedTime] = useState<string>('Tersimpan');
@@ -381,18 +381,6 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
 
               {/* Method Selector Tabs */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('all')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
-                    activeTab === 'all'
-                      ? 'bg-teal-500 text-white shadow-sm'
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                  }`}
-                >
-                  Semua 7 Metode
-                </button>
-
                 {METHOD_KEYS.map(key => {
                   const isActive = activeTab === key;
                   return (
@@ -424,9 +412,9 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
               </div>
 
               {/* Input Forms for Methods */}
-              <div className={activeTab === 'all' ? "grid grid-cols-1 sm:grid-cols-2 gap-3.5" : "space-y-3"}>
+              <div className="space-y-3">
                 {METHOD_KEYS.map(methodKey => {
-                  if (activeTab !== 'all' && activeTab !== methodKey) return null;
+                  if (activeTab !== methodKey) return null;
 
                   const meta = METHOD_DETAILS[methodKey];
                   const entry = entries[methodKey];
