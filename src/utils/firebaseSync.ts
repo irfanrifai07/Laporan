@@ -466,7 +466,8 @@ export function subscribeToRealtimeKbData(
   onSyncStatusChange?: (isConnected: boolean) => void,
   initialLocalData?: RawDataRow[],
   onPpmTargetsLoaded?: (targets: PpmTargetMap, year: string, availableYears: string[]) => void,
-  onEntriesLoaded?: (entries: FirestoreKbEntryDoc[], allYears: string[]) => void
+  onEntriesLoaded?: (entries: FirestoreKbEntryDoc[], allYears: string[]) => void,
+  onAccountsLoaded?: (customPasswords: Record<string, string>) => void
 ): Unsubscribe {
   let latestEntries: FirestoreKbEntryDoc[] = [];
   let latestEnteredMonths: string[] | undefined = undefined;
@@ -597,6 +598,7 @@ export function subscribeToRealtimeKbData(
   const unsubAccounts = onSnapshot(
     accountsQuery,
     (querySnap) => {
+      let latestMap: Record<string, string> = {};
       try {
         const raw = localStorage.getItem('laporan_kb_custom_passwords');
         const currentMap: Record<string, string> = raw ? JSON.parse(raw) : {};
@@ -605,19 +607,27 @@ export function subscribeToRealtimeKbData(
           const acc = d.data();
           if (
             typeof acc.username === 'string' &&
-            typeof acc.customPassword === 'string' &&
-            currentMap[acc.username] !== acc.customPassword
+            typeof acc.customPassword === 'string'
           ) {
-            currentMap[acc.username] = acc.customPassword;
-            changed = true;
+            if (currentMap[acc.username] !== acc.customPassword) {
+              currentMap[acc.username] = acc.customPassword;
+              changed = true;
+            }
           }
         });
+        latestMap = currentMap;
         if (changed) {
           localStorage.setItem('laporan_kb_custom_passwords', JSON.stringify(currentMap));
         }
       } catch {
-        // ignore localStorage error
+        querySnap.docs.forEach((d) => {
+          const acc = d.data();
+          if (typeof acc.username === 'string' && typeof acc.customPassword === 'string') {
+            latestMap[acc.username] = acc.customPassword;
+          }
+        });
       }
+      onAccountsLoaded?.({ ...latestMap });
     },
     (error) => {
       handleFirestoreError(error, OperationType.LIST, 'kb_accounts');

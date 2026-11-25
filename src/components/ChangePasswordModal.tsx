@@ -17,13 +17,15 @@ interface ChangePasswordModalProps {
   onClose: () => void;
   currentUser: AuthUser;
   onSuccessNotification?: (message: string) => void;
+  onOpenKecamatanPasswords?: () => void;
 }
 
 export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   isOpen,
   onClose,
   currentUser,
-  onSuccessNotification
+  onSuccessNotification,
+  onOpenKecamatanPasswords
 }) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -131,11 +133,25 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           </div>
 
           {/* Notice: Hanya Bisa Merubah Password Saja */}
-          <div className="px-5 py-2.5 bg-teal-500/10 border-b border-teal-500/20 flex items-center space-x-2 text-[11px] text-teal-300">
-            <ShieldCheck className="w-4 h-4 shrink-0 text-teal-400" />
-            <span>
-              Nama akun dan wilayah kecamatan bersifat tetap. Anda hanya dapat memperbarui kata sandi.
-            </span>
+          <div className="px-5 py-2.5 bg-teal-500/10 border-b border-teal-500/20 flex items-center justify-between gap-2 text-[11px] text-teal-300">
+            <div className="flex items-center space-x-2 min-w-0">
+              <ShieldCheck className="w-4 h-4 shrink-0 text-teal-400" />
+              <span>
+                Nama akun dan wilayah kecamatan bersifat tetap. Anda hanya dapat memperbarui kata sandi.
+              </span>
+            </div>
+            {currentUser.role === 'admin' && !currentUser.kecamatan && onOpenKecamatanPasswords && (
+              <button
+                type="button"
+                onClick={() => {
+                  handleClose();
+                  onOpenKecamatanPasswords();
+                }}
+                className="shrink-0 px-2.5 py-1 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 text-[10px] font-black text-teal-200 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                Sandi Kecamatan
+              </button>
+            )}
           </div>
 
           {/* Form */}

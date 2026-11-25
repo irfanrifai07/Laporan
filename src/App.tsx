@@ -13,7 +13,7 @@ import {
   Layers, Globe,
   Activity, ArrowDownRight, ArrowUpRight, RefreshCw, AlertCircle,
   FileSpreadsheet, CheckCircle2, RotateCcw, Target, Download, Calendar, LogOut, KeyRound,
-  BarChart3, EyeOff
+  BarChart3, EyeOff, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -59,6 +59,8 @@ import { TableView } from './components/TableView';
 import { PpmView } from './components/PpmView';
 import { LoginView } from './components/LoginView';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { KecamatanPasswordsModal } from './components/KecamatanPasswordsModal';
+import { getCustomPasswords } from './utils/authManager';
 import logoBojonegoro from './assets/logo_bojonegoro.svg';
 
 interface DashboardCategoryItem {
@@ -265,6 +267,8 @@ export default function App() {
     }
   });
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isKecPasswordsOpen, setIsKecPasswordsOpen] = useState(false);
+  const [customPasswordsMap, setCustomPasswordsMap] = useState<Record<string, string>>(() => getCustomPasswords());
 
   // Menentukan apakah pengguna yang sedang login adalah akun Kecamatan
   const isKecamatanUser = Boolean(
@@ -381,6 +385,9 @@ export default function App() {
         if (allYears && allYears.length > 0) {
           setAvailablePpmYears(allYears);
         }
+      },
+      (accountsMap) => {
+        setCustomPasswordsMap(accountsMap);
       }
     );
     return () => {
@@ -852,6 +859,20 @@ export default function App() {
                 <KeyRound className="w-4 h-4 text-teal-400 shrink-0" />
                 <span>Ubah Kata Sandi</span>
               </button>
+
+              {currentUser.role === 'admin' && !isKecamatanUser && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    setIsKecPasswordsOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-900/60 hover:bg-teal-500/15 text-slate-200 hover:text-teal-300 border border-slate-700 hover:border-teal-500/30 text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <Users className="w-4 h-4 text-teal-400 shrink-0" />
+                  <span>Lihat Sandi Kecamatan</span>
+                </button>
+              )}
             </div>
 
             <button
@@ -920,6 +941,23 @@ export default function App() {
                       <div className="ml-3 flex items-center justify-between flex-1">
                         <span className="text-xs font-semibold">Data PPM</span>
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">Target</span>
+                      </div>
+                    )}
+                  </button>
+                )}
+
+                {currentUser.role === 'admin' && !isKecamatanUser && (
+                  <button
+                    type="button"
+                    onClick={() => setIsKecPasswordsOpen(true)}
+                    className="w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer text-slate-400 hover:bg-slate-700/50 hover:text-teal-300"
+                    title="Lihat sandi 28 akun kecamatan"
+                  >
+                    <Users className="w-5 h-5 shrink-0 text-teal-400" />
+                    {sidebarOpen && (
+                      <div className="ml-3 flex items-center justify-between flex-1">
+                        <span className="text-xs font-semibold">Sandi Kecamatan</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">28 Kec.</span>
                       </div>
                     )}
                   </button>
@@ -1799,9 +1837,25 @@ export default function App() {
           onClose={() => setIsChangePasswordOpen(false)}
           currentUser={currentUser}
           onSuccessNotification={(msg) => {
+            setCustomPasswordsMap(getCustomPasswords());
             setNotification(msg);
             setTimeout(() => setNotification(null), 4000);
           }}
+          onOpenKecamatanPasswords={
+            currentUser.role === 'admin' && !isKecamatanUser
+              ? () => setIsKecPasswordsOpen(true)
+              : undefined
+          }
+        />
+      )}
+
+      {/* Modal Daftar Sandi 28 Kecamatan (Khusus Administrator Kabupaten) */}
+      {currentUser && currentUser.role === 'admin' && !isKecamatanUser && (
+        <KecamatanPasswordsModal
+          isOpen={isKecPasswordsOpen}
+          onClose={() => setIsKecPasswordsOpen(false)}
+          currentUser={currentUser}
+          customPasswords={customPasswordsMap}
         />
       )}
 

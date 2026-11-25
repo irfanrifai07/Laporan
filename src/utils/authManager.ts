@@ -157,3 +157,36 @@ export function changePassword(
     return { success: false, error: 'Gagal menyimpan perubahan kata sandi ke penyimpanan lokal.' };
   }
 }
+
+export interface KecamatanPasswordInfo {
+  username: string;
+  namaKecamatan: string;
+  roleLabel: string;
+  defaultPassword: string;
+  activePassword: string;
+  isCustom: boolean;
+}
+
+/**
+ * Mengambil daftar seluruh akun 28 kecamatan beserta kata sandi aktifnya (khusus Admin)
+ */
+export function getKecamatanAccountsWithPasswords(
+  customMapOverride?: Record<string, string>
+): KecamatanPasswordInfo[] {
+  const customMap = customMapOverride ?? getCustomPasswords();
+  return OFFICIAL_ACCOUNTS
+    .filter((acc) => acc.role === 'plkb')
+    .map((acc) => {
+      const customPass = customMap[acc.username.toUpperCase()];
+      const activePassword = customPass || acc.defaultPassword;
+      return {
+        username: acc.username,
+        namaKecamatan: acc.namaKecamatan,
+        roleLabel: acc.roleLabel,
+        defaultPassword: acc.defaultPassword,
+        activePassword,
+        isCustom: Boolean(customPass && customPass !== acc.defaultPassword),
+      };
+    });
+}
+
