@@ -496,19 +496,19 @@ export const EntryView: React.FC<EntryViewProps> = ({
         </div>
 
         {/* TABEL PER BULAN DENGAN FORMAT TAMPILAN AWAL */}
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className={`w-full text-left border-collapse ${isMobileLandscape ? "min-w-[780px]" : "min-w-[900px]"}`}>
+        <div className={isMobile ? "w-full overflow-hidden" : "overflow-x-auto custom-scrollbar"}>
+          <table className={`w-full text-left border-collapse ${isMobile ? "table-fixed" : "min-w-[900px]"}`}>
             <thead>
-              <tr className="bg-slate-900/95 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
-                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center w-10 sticky left-0 bg-slate-900 z-10`}>No</th>
-                <th className={`${isMobileLandscape ? "px-3 py-2.5 min-w-[130px]" : "px-4 py-3.5 min-w-[150px]"} sticky left-10 bg-slate-900 z-10`}>Kecamatan</th>
-                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>PPM Target</th>
-                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Bln Lalu</th>
-                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Bln Ini</th>
-                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Jumlah Capaian</th>
-                <th className={`${isMobileLandscape ? "px-2.5 py-2.5 w-[125px]" : "px-4 py-3.5 w-[150px]"}`}>Prosentase</th>
-                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Sisa Target</th>
-                <th className={`${isMobileLandscape ? "px-2.5 py-2.5 w-24" : "px-4 py-3.5 w-28"} text-center`}>Aksi</th>
+              <tr className={`bg-slate-900/95 font-black text-slate-400 uppercase border-b border-slate-700 ${isMobile ? "text-[9px]" : "text-[10px]"}`}>
+                <th className={isMobile ? "px-0.5 py-2 text-center w-[5%]" : "px-4 py-3.5 text-center w-10 sticky left-0 bg-slate-900 z-10"}>No</th>
+                <th className={isMobile ? "px-1 py-2 w-[22%] truncate" : "px-4 py-3.5 min-w-[150px] sticky left-10 bg-slate-900 z-10"}>Kecamatan</th>
+                <th className={isMobile ? "px-0.5 py-2 text-center w-[10%]" : "px-4 py-3.5 text-center"}>{isMobile ? "PPM" : "PPM Target"}</th>
+                <th className={isMobile ? "px-0.5 py-2 text-center w-[9%]" : "px-4 py-3.5 text-center"}>{isMobile ? "Lalu" : "Bln Lalu"}</th>
+                <th className={isMobile ? "px-0.5 py-2 text-center w-[9%]" : "px-4 py-3.5 text-center"}>{isMobile ? "Ini" : "Bln Ini"}</th>
+                <th className={isMobile ? "px-0.5 py-2 text-center w-[10%]" : "px-4 py-3.5 text-center"}>{isMobile ? "Jml" : "Jumlah Capaian"}</th>
+                <th className={isMobile ? "px-1 py-2 w-[14%]" : "px-4 py-3.5 w-[150px]"}>{isMobile ? "%" : "Prosentase"}</th>
+                <th className={isMobile ? "px-0.5 py-2 text-center w-[10%]" : "px-4 py-3.5 text-center"}>{isMobile ? "Sisa" : "Sisa Target"}</th>
+                <th className={isMobile ? "px-0.5 py-2 w-[11%] text-center" : "px-4 py-3.5 w-28 text-center"}>Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
@@ -519,7 +519,8 @@ export const EntryView: React.FC<EntryViewProps> = ({
                   row.kecamatan.toUpperCase().trim() === activeLockKecamatan.toUpperCase().trim()
                 );
                 const isLockedRow = isKecamatanUser && !isUserDistrict && !isTotalRow;
-                const cellPad = isMobileLandscape ? "px-2.5 py-2" : "px-4 py-3";
+                const cellPad = isMobile ? "px-0.5 py-1.5" : "px-4 py-3";
+                const numClass = isMobile ? "text-[9.5px]" : "text-xs";
 
                 return (
                   <tr 
@@ -532,18 +533,20 @@ export const EntryView: React.FC<EntryViewProps> = ({
                         : 'hover:bg-slate-750/50'
                     }`}
                   >
-                    <td className={`${cellPad} text-center text-xs font-medium sticky left-0 z-10 ${
+                    <td className={`${cellPad} text-center ${numClass} font-medium ${
+                      isMobile ? "" : "sticky left-0 z-10"
+                    } ${
                       isTotalRow ? 'bg-slate-850 text-teal-400 font-bold' : 'bg-slate-800 text-slate-500'
                     }`}>
                       {isTotalRow ? '-' : idx + 1}
                     </td>
 
-                    <td className={`${cellPad} text-xs font-bold sticky left-10 z-10 ${
+                    <td className={`${isMobile ? "px-1 py-1.5 text-[9.5px]" : "px-4 py-3 text-xs sticky left-10 z-10"} font-bold ${
                       isTotalRow ? 'bg-slate-850 text-teal-300 uppercase' : 'bg-slate-800 text-slate-200'
-                    }`}>
-                      <div className="flex items-center space-x-2">
-                        <span>{row.kecamatan}</span>
-                        {isUserDistrict && (
+                    }`} title={row.kecamatan}>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="truncate">{isMobile && isTotalRow ? 'JUMLAH KAB.' : row.kecamatan}</span>
+                        {isUserDistrict && !isMobile && (
                           <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-teal-500/25 text-teal-300 border border-teal-500/40 shrink-0">
                             Wilayah Anda
                           </span>
@@ -551,27 +554,27 @@ export const EntryView: React.FC<EntryViewProps> = ({
                       </div>
                     </td>
 
-                    <td className={`${cellPad} text-center text-xs font-semibold text-slate-300 tabular-nums`}>
+                    <td className={`${cellPad} text-center ${numClass} font-semibold text-slate-300 tabular-nums`}>
                       {formatNumber(row.ppm)}
                     </td>
 
-                    <td className={`${cellPad} text-center text-xs text-slate-400 tabular-nums`}>
+                    <td className={`${cellPad} text-center ${numClass} text-slate-400 tabular-nums`}>
                       {formatNumber(row.blnLalu)}
                     </td>
 
-                    <td className={`${cellPad} text-center text-xs font-semibold text-sky-400 tabular-nums`}>
+                    <td className={`${cellPad} text-center ${numClass} font-semibold text-sky-400 tabular-nums`}>
                       {formatNumber(row.blnIni)}
                     </td>
 
-                    <td className={`${cellPad} text-center text-xs font-black text-teal-400 tabular-nums`}>
+                    <td className={`${cellPad} text-center ${numClass} font-black text-teal-400 tabular-nums`}>
                       {formatNumber(row.jumlah)}
                     </td>
 
-                    <td className={cellPad}>
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between text-[10px] font-black text-slate-300 tabular-nums">
-                          <span>{row.percentage.toFixed(2)}%</span>
-                          {row.percentage >= 100 && (
+                    <td className={isMobile ? "px-1 py-1.5" : cellPad}>
+                      <div className="flex flex-col gap-0.5">
+                        <div className={`flex items-center justify-between font-black text-slate-300 tabular-nums ${isMobile ? "text-[9px]" : "text-[10px]"}`}>
+                          <span>{row.percentage.toFixed(isMobile ? 1 : 2)}%</span>
+                          {!isMobile && row.percentage >= 100 && (
                             <span className="text-[9px] text-emerald-400 font-bold">LUNAS</span>
                           )}
                         </div>
@@ -590,7 +593,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
                       </div>
                     </td>
 
-                    <td className={`${cellPad} text-center text-xs font-bold tabular-nums`}>
+                    <td className={`${cellPad} text-center ${numClass} font-bold tabular-nums`}>
                       <span className={row.sisa <= 0 ? 'text-emerald-400' : 'text-rose-400'}>
                         {formatNumber(row.sisa)}
                       </span>
@@ -600,30 +603,36 @@ export const EntryView: React.FC<EntryViewProps> = ({
                       {!isTotalRow && (
                         isLockedRow ? (
                           <div 
-                            className="inline-flex items-center px-2 py-1 rounded-lg bg-slate-800/80 text-slate-500 border border-slate-700/60 text-[11px] font-semibold cursor-not-allowed select-none"
+                            className={`inline-flex items-center justify-center rounded-lg bg-slate-800/80 text-slate-500 border border-slate-700/60 font-semibold cursor-not-allowed select-none ${
+                              isMobile ? "px-1 py-0.5 text-[9px]" : "px-2 py-1 text-[11px]"
+                            }`}
                             title={`Akses Terkunci: Akun Anda hanya berwenang mengentri data Kecamatan ${activeLockKecamatan}`}
                           >
-                            <Lock className="w-3 h-3 mr-1 text-slate-500 shrink-0" />
-                            <span>Terkunci</span>
+                            <Lock className="w-2.5 h-2.5 shrink-0" />
+                            {!isMobile && <span className="ml-1">Terkunci</span>}
                           </div>
                         ) : isUserDistrict ? (
                           <button
                             type="button"
                             onClick={() => onOpenEntrySidebar(row.kecamatan)}
-                            className="inline-flex items-center px-3 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-md shadow-teal-500/20"
+                            className={`inline-flex items-center justify-center rounded-lg bg-teal-500 hover:bg-teal-400 text-slate-950 font-black transition-all cursor-pointer shadow-md shadow-teal-500/20 ${
+                              isMobile ? "px-1.5 py-1 text-[9.5px]" : "px-3 py-1.5 text-xs"
+                            }`}
                             title={`Buka form entri data capaian Kecamatan ${row.kecamatan}`}
                           >
-                            <Edit3 className="w-3.5 h-3.5 mr-1" />
-                            <span>Entri Data</span>
+                            <Edit3 className={isMobile ? "w-2.5 h-2.5 mr-0.5" : "w-3.5 h-3.5 mr-1"} />
+                            <span>{isMobile ? "Entri" : "Entri Data"}</span>
                           </button>
                         ) : (
                           <button
                             type="button"
                             onClick={() => onOpenEntrySidebar(row.kecamatan)}
-                            className="inline-flex items-center px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500 hover:text-white text-teal-400 border border-teal-500/30 text-xs font-bold transition-all cursor-pointer shadow-xs"
+                            className={`inline-flex items-center justify-center rounded-lg bg-teal-500/10 hover:bg-teal-500 hover:text-white text-teal-400 border border-teal-500/30 font-bold transition-all cursor-pointer shadow-xs ${
+                              isMobile ? "px-1.5 py-1 text-[9.5px]" : "px-2.5 py-1 text-xs"
+                            }`}
                             title={`Buka entri data lengkap untuk ${row.kecamatan}`}
                           >
-                            <Edit3 className="w-3 h-3 mr-1" />
+                            <Edit3 className={isMobile ? "w-2.5 h-2.5 mr-0.5" : "w-3 h-3 mr-1"} />
                             <span>Entri</span>
                           </button>
                         )

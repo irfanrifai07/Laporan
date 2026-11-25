@@ -488,45 +488,46 @@ export const PpmView: React.FC<PpmViewProps> = ({
         </div>
 
         {/* Tabel Data PPM */}
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className={`w-full text-left border-collapse ${isMobileLandscape ? "min-w-[940px]" : "min-w-[1050px]"}`}>
+        <div className={isMobile ? "w-full overflow-hidden" : "overflow-x-auto custom-scrollbar"}>
+          <table className={`w-full text-left border-collapse ${isMobile ? "table-fixed" : "min-w-[1050px]"}`}>
             <thead>
               {/* Grup Header */}
-              <tr className="bg-slate-900/95 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
-                <th className={`${isMobileLandscape ? "px-2.5 py-2" : "px-3.5 py-3"} text-center w-10 sticky left-0 bg-slate-900 z-10`} rowSpan={2}>No</th>
-                <th className={`${isMobileLandscape ? "px-3 py-2 min-w-[130px]" : "px-4 py-3 min-w-[150px]"} sticky left-10 bg-slate-900 z-10`} rowSpan={2}>Kecamatan</th>
-                <th className="px-3 py-2 text-center bg-indigo-500/10 text-indigo-300 border-x border-slate-700/60" colSpan={4}>
-                  Metode MKJP
+              <tr className={`bg-slate-900/95 font-black text-slate-400 uppercase border-b border-slate-700 ${isMobile ? "text-[8px]" : "text-[10px]"}`}>
+                <th className={isMobile ? "px-0.5 py-1.5 text-center w-[4%]" : "px-3.5 py-3 text-center w-10 sticky left-0 bg-slate-900 z-10"} rowSpan={2}>No</th>
+                <th className={isMobile ? `px-1 py-1.5 truncate ${isAdmin ? "w-[17%]" : "w-[22%]"}` : "px-4 py-3 min-w-[150px] sticky left-10 bg-slate-900 z-10"} rowSpan={2}>Kecamatan</th>
+                <th className={`${isMobile ? "px-0.5 py-1" : "px-3 py-2"} text-center bg-indigo-500/10 text-indigo-300 border-x border-slate-700/60`} colSpan={4}>
+                  {isMobile ? "MKJP" : "Metode MKJP"}
                 </th>
-                <th className="px-3 py-2 text-center bg-sky-500/10 text-sky-300 border-r border-slate-700/60" colSpan={3}>
-                  Metode Non-MKJP
+                <th className={`${isMobile ? "px-0.5 py-1" : "px-3 py-2"} text-center bg-sky-500/10 text-sky-300 border-r border-slate-700/60`} colSpan={3}>
+                  {isMobile ? "Non-MKJP" : "Metode Non-MKJP"}
                 </th>
-                <th className="px-3 py-2 text-center bg-slate-800/80 border-r border-slate-700/60" colSpan={2}>
+                <th className={`${isMobile ? "px-0.5 py-1" : "px-3 py-2"} text-center bg-slate-800/80 border-r border-slate-700/60`} colSpan={2}>
                   Subtotal
                 </th>
-                <th className="px-4 py-3 text-center bg-teal-500/15 text-teal-300 font-black" rowSpan={2}>
-                  Total PPM
+                <th className={`${isMobile ? `px-0.5 py-1.5 ${isAdmin ? "w-[9.5%]" : "w-[14%]"}` : "px-4 py-3"} text-center bg-teal-500/15 text-teal-300 font-black`} rowSpan={2}>
+                  {isMobile ? "Total" : "Total PPM"}
                 </th>
                 {isAdmin && (
-                  <th className="px-3 py-3 text-center w-28" rowSpan={2}>Aksi Target</th>
+                  <th className={isMobile ? "px-0.5 py-1.5 text-center w-[9.5%]" : "px-3 py-3 text-center w-28"} rowSpan={2}>{isMobile ? "Aksi" : "Aksi Target"}</th>
                 )}
               </tr>
-              <tr className="bg-slate-900/80 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
-                <th className="px-3 py-2 text-center text-purple-400 bg-purple-500/5">IUD</th>
-                <th className="px-3 py-2 text-center text-rose-400 bg-rose-500/5">MOW</th>
-                <th className="px-3 py-2 text-center text-blue-400 bg-blue-500/5">MOP</th>
-                <th className="px-3 py-2 text-center text-amber-400 bg-amber-500/5 border-r border-slate-700/60">IMPLAN</th>
-                <th className="px-3 py-2 text-center text-emerald-400 bg-emerald-500/5">SUNTIK</th>
-                <th className="px-3 py-2 text-center text-teal-400 bg-teal-500/5">PIL</th>
-                <th className="px-3 py-2 text-center text-cyan-400 bg-cyan-500/5 border-r border-slate-700/60">KONDOM</th>
-                <th className="px-3 py-2 text-center text-indigo-300 bg-indigo-500/10">MKJP</th>
-                <th className="px-3 py-2 text-center text-sky-300 bg-sky-500/10 border-r border-slate-700/60">Non-MKJP</th>
+              <tr className={`bg-slate-900/80 font-black text-slate-400 uppercase border-b border-slate-700 ${isMobile ? "text-[7.5px]" : "text-[10px]"}`}>
+                <th className={`${isMobile ? "px-0.5 py-1 w-[5.5%]" : "px-3 py-2"} text-center text-purple-400 bg-purple-500/5`}>IUD</th>
+                <th className={`${isMobile ? "px-0.5 py-1 w-[5.5%]" : "px-3 py-2"} text-center text-rose-400 bg-rose-500/5`}>MOW</th>
+                <th className={`${isMobile ? "px-0.5 py-1 w-[5%]" : "px-3 py-2"} text-center text-blue-400 bg-blue-500/5`}>MOP</th>
+                <th className={`${isMobile ? "px-0.5 py-1 w-[6.5%]" : "px-3 py-2"} text-center text-amber-400 bg-amber-500/5 border-r border-slate-700/60`}>IMPLAN</th>
+                <th className={`${isMobile ? "px-0.5 py-1 w-[7%]" : "px-3 py-2"} text-center text-emerald-400 bg-emerald-500/5`}>SUNTIK</th>
+                <th className={`${isMobile ? "px-0.5 py-1 w-[6.5%]" : "px-3 py-2"} text-center text-teal-400 bg-teal-500/5`}>PIL</th>
+                <th className={`${isMobile ? "px-0.5 py-1 w-[6.5%]" : "px-3 py-2"} text-center text-cyan-400 bg-cyan-500/5 border-r border-slate-700/60`}>KONDOM</th>
+                <th className={`${isMobile ? "px-0.5 py-1 w-[8.5%]" : "px-3 py-2"} text-center text-indigo-300 bg-indigo-500/10`}>MKJP</th>
+                <th className={`${isMobile ? "px-0.5 py-1 w-[9%]" : "px-3 py-2"} text-center text-sky-300 bg-sky-500/10 border-r border-slate-700/60`}>{isMobile ? "N-MKJP" : "Non-MKJP"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {filteredList.map((row, idx) => {
                 const isSelected = selectedKec === row.kecamatan;
-                const cellPad = isMobileLandscape ? "px-2.5 py-2" : "px-3 py-3";
+                const cellPad = isMobile ? "px-0.5 py-1.5" : "px-3 py-3";
+                const numClass = isMobile ? "text-[9px] tabular-nums" : "text-xs tabular-nums";
 
                 return (
                   <tr 
@@ -538,74 +539,76 @@ export const PpmView: React.FC<PpmViewProps> = ({
                         : 'hover:bg-slate-750/50'
                     }`}
                   >
-                    <td className={`${cellPad} text-center text-xs font-medium text-slate-500 sticky left-0 z-10 ${isSelected ? "bg-slate-850" : "bg-slate-800"}`}>
+                    <td className={`${cellPad} text-center ${numClass} font-medium text-slate-500 ${isMobile ? "" : "sticky left-0 z-10"} ${isSelected ? "bg-slate-850" : "bg-slate-800"}`}>
                       {idx + 1}
                     </td>
 
-                    <td className={`${cellPad} text-xs font-bold text-slate-200 sticky left-10 z-10 ${isSelected ? "bg-slate-850" : "bg-slate-800"}`}>
+                    <td className={`${isMobile ? "px-1 py-1.5 text-[9px] truncate" : "px-3 py-3 text-xs sticky left-10 z-10"} font-bold text-slate-200 ${isSelected ? "bg-slate-850" : "bg-slate-800"}`} title={row.kecamatan}>
                       {row.kecamatan}
                     </td>
 
                     {/* IUD */}
-                    <td className="px-3 py-3 text-center text-xs font-semibold text-purple-300">
+                    <td className={`${cellPad} text-center ${numClass} font-semibold text-purple-300`}>
                       {row.IUD || '-'}
                     </td>
 
                     {/* MOW */}
-                    <td className="px-3 py-3 text-center text-xs font-semibold text-rose-300">
+                    <td className={`${cellPad} text-center ${numClass} font-semibold text-rose-300`}>
                       {row.MOW || '-'}
                     </td>
 
                     {/* MOP */}
-                    <td className="px-3 py-3 text-center text-xs font-semibold text-blue-300">
+                    <td className={`${cellPad} text-center ${numClass} font-semibold text-blue-300`}>
                       {row.MOP || '-'}
                     </td>
 
                     {/* IMPLAN */}
-                    <td className="px-3 py-3 text-center text-xs font-semibold text-amber-300 border-r border-slate-700/40">
+                    <td className={`${cellPad} text-center ${numClass} font-semibold text-amber-300 border-r border-slate-700/40`}>
                       {row.IMPLAN || '-'}
                     </td>
 
                     {/* SUNTIK */}
-                    <td className="px-3 py-3 text-center text-xs font-semibold text-emerald-300">
+                    <td className={`${cellPad} text-center ${numClass} font-semibold text-emerald-300`}>
                       {row.SUNTIK || '-'}
                     </td>
 
                     {/* PIL */}
-                    <td className="px-3 py-3 text-center text-xs font-semibold text-teal-300">
+                    <td className={`${cellPad} text-center ${numClass} font-semibold text-teal-300`}>
                       {row.PIL || '-'}
                     </td>
 
                     {/* KONDOM */}
-                    <td className="px-3 py-3 text-center text-xs font-semibold text-cyan-300 border-r border-slate-700/40">
+                    <td className={`${cellPad} text-center ${numClass} font-semibold text-cyan-300 border-r border-slate-700/40`}>
                       {row.KONDOM || '-'}
                     </td>
 
                     {/* Subtotal MKJP */}
-                    <td className="px-3 py-3 text-center text-xs font-bold text-indigo-300 bg-indigo-500/5">
+                    <td className={`${cellPad} text-center ${numClass} font-bold text-indigo-300 bg-indigo-500/5`}>
                       {formatNumber(row.mkjp)}
                     </td>
 
                     {/* Subtotal Non-MKJP */}
-                    <td className="px-3 py-3 text-center text-xs font-bold text-sky-300 bg-sky-500/5 border-r border-slate-700/40">
+                    <td className={`${cellPad} text-center ${numClass} font-bold text-sky-300 bg-sky-500/5 border-r border-slate-700/40`}>
                       {formatNumber(row.nonMkjp)}
                     </td>
 
                     {/* Grand Total */}
-                    <td className="px-4 py-3 text-center text-xs font-black text-teal-400 bg-teal-500/10">
+                    <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-4 py-3 text-xs"} text-center font-black text-teal-400 bg-teal-500/10 tabular-nums`}>
                       {formatNumber(row.total)}
                     </td>
 
                     {/* Aksi Ubah Target untuk Admin */}
                     {isAdmin && (
-                      <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className={`${cellPad} text-center`} onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => handleOpenEditForKecamatan(row.kecamatan)}
-                          className="inline-flex items-center px-2 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500 hover:text-white text-teal-400 border border-teal-500/30 text-xs font-bold transition-all cursor-pointer"
+                          className={`inline-flex items-center justify-center rounded-lg bg-teal-500/10 hover:bg-teal-500 hover:text-white text-teal-400 border border-teal-500/30 font-bold transition-all cursor-pointer ${
+                            isMobile ? "px-1 py-0.5 text-[8.5px]" : "px-2 py-1 text-xs"
+                          }`}
                           title={`Ubah target PPM tahun ${activeYear} untuk ${row.kecamatan}`}
                         >
-                          <Edit3 className="w-3 h-3 mr-1" />
+                          <Edit3 className={isMobile ? "w-2.5 h-2.5 mr-0.5" : "w-3 h-3 mr-1"} />
                           <span>Ubah</span>
                         </button>
                       </td>
@@ -616,44 +619,44 @@ export const PpmView: React.FC<PpmViewProps> = ({
 
               {/* Baris Total Kabupaten Bojonegoro */}
               <tr className="bg-teal-500/15 font-black border-t-2 border-slate-600 text-slate-100">
-                <td className="px-2.5 py-3 text-center text-xs font-bold text-teal-400 sticky left-0 z-10 bg-slate-850">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-2.5 py-3 text-xs sticky left-0 z-10"} text-center font-bold text-teal-400 bg-slate-850`}>
                   -
                 </td>
-                <td className="px-3 py-3 text-xs font-black text-teal-300 uppercase tracking-wide sticky left-10 z-10 bg-slate-850">
-                  JUMLAH (KABUPATEN BOJONEGORO)
+                <td className={`${isMobile ? "px-1 py-1.5 text-[9px] truncate" : "px-3 py-3 text-xs sticky left-10 z-10"} font-black text-teal-300 uppercase tracking-wide bg-slate-850`}>
+                  {isMobile ? "JUMLAH KAB." : "JUMLAH (KABUPATEN BOJONEGORO)"}
                 </td>
-                <td className="px-3 py-3.5 text-center text-xs font-black text-purple-300">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-purple-300 tabular-nums`}>
                   {formatNumber(totalBojonegoro.IUD)}
                 </td>
-                <td className="px-3 py-3.5 text-center text-xs font-black text-rose-300">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-rose-300 tabular-nums`}>
                   {formatNumber(totalBojonegoro.MOW)}
                 </td>
-                <td className="px-3 py-3.5 text-center text-xs font-black text-blue-300">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-blue-300 tabular-nums`}>
                   {formatNumber(totalBojonegoro.MOP)}
                 </td>
-                <td className="px-3 py-3.5 text-center text-xs font-black text-amber-300 border-r border-slate-700/40">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-amber-300 border-r border-slate-700/40 tabular-nums`}>
                   {formatNumber(totalBojonegoro.IMPLAN)}
                 </td>
-                <td className="px-3 py-3.5 text-center text-xs font-black text-emerald-300">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-emerald-300 tabular-nums`}>
                   {formatNumber(totalBojonegoro.SUNTIK)}
                 </td>
-                <td className="px-3 py-3.5 text-center text-xs font-black text-teal-300">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-teal-300 tabular-nums`}>
                   {formatNumber(totalBojonegoro.PIL)}
                 </td>
-                <td className="px-3 py-3.5 text-center text-xs font-black text-cyan-300 border-r border-slate-700/40">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-cyan-300 border-r border-slate-700/40 tabular-nums`}>
                   {formatNumber(totalBojonegoro.KONDOM)}
                 </td>
-                <td className="px-3 py-3.5 text-center text-xs font-black text-indigo-300 bg-indigo-500/10">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-indigo-300 bg-indigo-500/10 tabular-nums`}>
                   {formatNumber(totalBojonegoro.mkjp)}
                 </td>
-                <td className="px-3 py-3.5 text-center text-xs font-black text-sky-300 bg-sky-500/10 border-r border-slate-700/40">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-sky-300 bg-sky-500/10 border-r border-slate-700/40 tabular-nums`}>
                   {formatNumber(totalBojonegoro.nonMkjp)}
                 </td>
-                <td className="px-4 py-3.5 text-center text-sm font-black text-teal-300 bg-teal-500/20">
+                <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-4 py-3.5 text-sm"} text-center font-black text-teal-300 bg-teal-500/20 tabular-nums`}>
                   {formatNumber(totalBojonegoro.total)}
                 </td>
                 {isAdmin && (
-                  <td className="px-3 py-3.5 text-center text-xs text-slate-500 font-bold">
+                  <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center text-slate-500 font-bold`}>
                     -
                   </td>
                 )}
@@ -927,23 +930,23 @@ export const PpmView: React.FC<PpmViewProps> = ({
                 </div>
               ) : (
                 /* MODE 2: Tabel Spreadsheet Seluruh 28 Kecamatan */
-                <div className={`border border-slate-700 rounded-xl overflow-x-auto custom-scrollbar ${isMobileLandscape ? "max-h-[210px]" : "max-h-[500px]"}`}>
-                  <table className="w-full text-left border-collapse min-w-[900px]">
-                    <thead className="sticky top-0 bg-slate-900 text-[10px] font-black uppercase text-slate-400 z-20 border-b border-slate-700">
+                <div className={`border border-slate-700 rounded-xl overflow-y-auto custom-scrollbar ${isMobile ? "overflow-x-hidden" : "overflow-x-auto"} ${isMobileLandscape ? "max-h-[210px]" : "max-h-[500px]"}`}>
+                  <table className={`w-full text-left border-collapse ${isMobile ? "table-fixed" : "min-w-[900px]"}`}>
+                    <thead className={`sticky top-0 bg-slate-900 font-black uppercase text-slate-400 z-20 border-b border-slate-700 ${isMobile ? "text-[8px]" : "text-[10px]"}`}>
                       <tr>
-                        <th className="p-2.5 text-center w-10 sticky left-0 bg-slate-900 z-20">No</th>
-                        <th className="p-2.5 sticky left-10 bg-slate-900 z-20 min-w-[130px]">Kecamatan</th>
-                        <th className="p-2 text-center text-purple-400">IUD</th>
-                        <th className="p-2 text-center text-rose-400">MOW</th>
-                        <th className="p-2 text-center text-blue-400">MOP</th>
-                        <th className="p-2 text-center text-amber-400">IMPLAN</th>
-                        <th className="p-2 text-center text-emerald-400">SUNTIK</th>
-                        <th className="p-2 text-center text-teal-400">PIL</th>
-                        <th className="p-2 text-center text-cyan-400">KONDOM</th>
-                        <th className="p-2 text-center text-teal-300">Total</th>
+                        <th className={isMobile ? "p-1 text-center w-[5%]" : "p-2.5 text-center w-10 sticky left-0 bg-slate-900 z-20"}>No</th>
+                        <th className={isMobile ? "p-1 w-[19%] truncate" : "p-2.5 sticky left-10 bg-slate-900 z-20 min-w-[130px]"}>Kecamatan</th>
+                        <th className={`${isMobile ? "p-0.5 w-[9%]" : "p-2"} text-center text-purple-400`}>IUD</th>
+                        <th className={`${isMobile ? "p-0.5 w-[9%]" : "p-2"} text-center text-rose-400`}>MOW</th>
+                        <th className={`${isMobile ? "p-0.5 w-[9%]" : "p-2"} text-center text-blue-400`}>MOP</th>
+                        <th className={`${isMobile ? "p-0.5 w-[9.5%]" : "p-2"} text-center text-amber-400`}>IMPLAN</th>
+                        <th className={`${isMobile ? "p-0.5 w-[10%]" : "p-2"} text-center text-emerald-400`}>SUNTIK</th>
+                        <th className={`${isMobile ? "p-0.5 w-[9%]" : "p-2"} text-center text-teal-400`}>PIL</th>
+                        <th className={`${isMobile ? "p-0.5 w-[9.5%]" : "p-2"} text-center text-cyan-400`}>KONDOM</th>
+                        <th className={`${isMobile ? "p-0.5 w-[11%]" : "p-2"} text-center text-teal-300`}>Total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-700/40 text-xs">
+                    <tbody className={`divide-y divide-slate-700/40 ${isMobile ? "text-[10px]" : "text-xs"}`}>
                       {KECAMATAN_LIST.map((kec, idx) => {
                         const vals = tempTargets[kec] || RAW_PPM_DATA[kec];
                         const rowTotal = (vals.IUD || 0) + (vals.MOW || 0) + (vals.MOP || 0) + 
@@ -952,20 +955,20 @@ export const PpmView: React.FC<PpmViewProps> = ({
 
                         return (
                           <tr key={kec} className="hover:bg-slate-800/40">
-                            <td className="p-2 text-center text-slate-500 text-[11px] sticky left-0 bg-slate-900 z-10">{idx + 1}</td>
-                            <td className="p-2 font-bold text-slate-200 sticky left-10 bg-slate-900 z-10">{kec}</td>
+                            <td className={`${isMobile ? "p-1 text-[9px]" : "p-2 text-[11px] sticky left-0 bg-slate-900 z-10"} text-center text-slate-500`}>{idx + 1}</td>
+                            <td className={`${isMobile ? "p-1 text-[9px] truncate" : "p-2 sticky left-10 bg-slate-900 z-10"} font-bold text-slate-200`} title={kec}>{kec}</td>
                             {METHOD_KEYS.map(m => (
-                              <td key={m} className="p-1 text-center">
+                              <td key={m} className={`${isMobile ? "p-0.5" : "p-1"} text-center`}>
                                 <input
                                   type="number"
                                   min="0"
                                   value={vals[m] ?? 0}
                                   onChange={(e) => handleMethodInputChange(kec, m, e.target.value)}
-                                  className="w-16 bg-slate-950/70 border border-slate-700 focus:border-teal-500 rounded px-1.5 py-1 text-center text-xs font-semibold text-slate-200 focus:outline-none"
+                                  className={`${isMobile ? "w-full min-w-0 px-0.5 py-0.5 text-[9.5px]" : "w-16 px-1.5 py-1 text-xs"} bg-slate-950/70 border border-slate-700 focus:border-teal-500 rounded text-center font-semibold text-slate-200 focus:outline-none tabular-nums`}
                                 />
                               </td>
                             ))}
-                            <td className="p-2 text-center font-black text-teal-400 bg-teal-500/5">
+                            <td className={`${isMobile ? "p-0.5 text-[9.5px]" : "p-2"} text-center font-black text-teal-400 bg-teal-500/5 tabular-nums`}>
                               {formatNumber(rowTotal)}
                             </td>
                           </tr>

@@ -1290,8 +1290,8 @@ export default function App() {
 
         <div
           className={cn(
-            "flex-1 overflow-y-auto scroll-smooth bg-slate-900/50 custom-scrollbar",
-            isMobileLandscape ? "p-2.5 pb-3" : "p-3 sm:p-6 pb-24 lg:pb-6"
+            "flex-1 overflow-y-auto overflow-x-hidden scroll-smooth bg-slate-900/50 custom-scrollbar",
+            isMobileLandscape ? "p-2 pb-2.5" : "p-3 sm:p-6 pb-24 lg:pb-6"
           )}
         >
           {/* Stats Summary - Visible on Dashboard view (saat grafik mobile landscape terbuka, ditaruh di bawah grafik agar grafik langsung penuh di layar) */}
@@ -1364,27 +1364,27 @@ export default function App() {
                     /* Main Bar Chart */
                     <div
                       className={cn(
-                        "lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl shadow-xl relative overflow-hidden min-w-0",
-                        isMobileLandscape ? "p-3" : "p-4 sm:p-6"
+                        "lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl shadow-xl relative overflow-hidden min-w-0 w-full",
+                        isMobileLandscape ? "p-2.5" : "p-4 sm:p-6"
                       )}
                     >
                       <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
                       <div
                         className={cn(
-                          "flex flex-col sm:flex-row sm:items-center justify-between landscape-row",
-                          isMobileLandscape ? "gap-2 mb-2" : "gap-3 mb-6"
+                          "flex flex-col sm:flex-row sm:items-center justify-between landscape-row flex-wrap",
+                          isMobileLandscape ? "gap-1.5 mb-1.5 pl-1" : "gap-3 mb-5 pl-1"
                         )}
                       >
-                        <div className="flex items-center space-x-2">
-                          <h3 className={cn("font-bold uppercase tracking-wider text-slate-300", isMobileLandscape ? "text-xs" : "text-sm")}>
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <h3 className={cn("font-bold uppercase tracking-wider text-slate-300 truncate", isMobileLandscape ? "text-[11px]" : "text-xs sm:text-sm")}>
                             Grafik Capaian Per Kecamatan
                           </h3>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/30">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/30 shrink-0">
                             {selectedMonth}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                           <div className="flex items-center gap-2">
                             <span className="flex items-center text-[10px] text-emerald-400 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500 mr-1"></div> {'>'}80%</span>
                             <span className="flex items-center text-[10px] text-amber-400 font-bold"><div className="w-2 h-2 rounded-full bg-amber-500 mr-1"></div> 50-80%</span>
@@ -1395,40 +1395,55 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => setShowMobileBarChart(false)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-rose-500/15 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/30 text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-rose-500/15 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/30 text-[10px] font-bold transition-colors cursor-pointer whitespace-nowrap"
                               title="Sembunyikan Grafik Capaian Per Kecamatan"
                             >
-                              <EyeOff className="w-3.5 h-3.5" />
+                              <EyeOff className="w-3 h-3" />
                               <span>Sembunyikan Grafik</span>
                             </button>
                           )}
                         </div>
                       </div>
-                      <div className={cn("w-full min-w-0", isMobileLandscape ? "h-[245px]" : "h-[280px] sm:h-[350px]")}>
-                        <ResponsiveContainer key={isMobileLandscape ? 'bar-landscape' : 'bar-portrait'} width="100%" height="100%" minWidth={0} minHeight={0}>
-                          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: isMobileLandscape ? 48 : 40 }}>
+                      <div className={cn("w-full min-w-0", isMobileLandscape ? "h-[215px]" : "h-[270px] sm:h-[350px]")}>
+                        <ResponsiveContainer key={isMobileLandscape ? 'bar-landscape' : isMobile ? 'bar-portrait' : 'bar-desktop'} width="100%" height="100%" minWidth={0} minHeight={0}>
+                          <BarChart
+                            data={chartData}
+                            margin={{
+                              top: 8,
+                              right: isMobile ? 6 : 12,
+                              left: isMobile ? 2 : 0,
+                              bottom: 4
+                            }}
+                          >
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                             <XAxis 
                               dataKey="kecamatan" 
                               interval={0} 
-                              tick={{ fontSize: isMobileLandscape ? 8 : 9, fill: '#64748b', fontWeight: 600 }}
+                              height={isMobileLandscape ? 58 : isMobile ? 62 : 68}
+                              tick={{
+                                fontSize: isMobileLandscape ? 7.5 : isMobile ? 6.5 : 9,
+                                fill: '#94a3b8',
+                                fontWeight: 600
+                              }}
                               angle={-45}
                               textAnchor="end"
+                              tickMargin={4}
                               stroke="#334155"
                             />
                             <YAxis 
-                              tick={{ fontSize: 10, fill: '#64748b' }}
+                              width={isMobile ? 34 : 44}
+                              tick={{ fontSize: isMobile ? 9 : 10, fill: '#94a3b8' }}
                               stroke="#334155"
                               domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)]}
                               tickFormatter={(v) => `${v}%`}
                             />
                             <Tooltip 
                               cursor={{ fill: 'rgba(20, 184, 166, 0.05)' }}
-                              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }}
                               itemStyle={{ color: '#2dd4bf', fontWeight: 'bold' }}
                               formatter={(val: any) => [`${Number(val).toFixed(2)}%`, 'Prosentase']}
                             />
-                            <Bar dataKey="percentage" radius={[4, 4, 0, 0]}>
+                            <Bar dataKey="percentage" radius={[3, 3, 0, 0]}>
                               {chartData.map((entry, index) => (
                                 <Cell 
                                   key={`cell-${index}`} 
@@ -1443,7 +1458,12 @@ export default function App() {
                   )}
 
                   {/* Summary Pie Chart */}
-                  <div className="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-xl p-4 sm:p-6 shadow-xl flex flex-col items-center min-w-0">
+                  <div
+                    className={cn(
+                      "lg:col-span-1 bg-slate-800 border border-slate-700 rounded-xl shadow-xl flex flex-col items-center min-w-0 w-full",
+                      isMobileLandscape ? "p-3" : "p-4 sm:p-6"
+                    )}
+                  >
                     <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 w-full text-center border-b border-slate-700 pb-3 mb-6 decoration-teal-500 decoration-2 underline-offset-8">Sisa dan Capaian</h3>
                     <div className="relative w-full h-[180px] mb-8 min-w-0">
                       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
