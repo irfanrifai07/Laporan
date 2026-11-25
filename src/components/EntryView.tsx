@@ -6,7 +6,8 @@
 import React, { useState, useMemo } from 'react';
 import { 
   FileSpreadsheet, Plus, Search, 
-  Layers, Calendar, Edit3, X, AlertCircle, Lock, ShieldCheck
+  Layers, Calendar, Edit3, X, AlertCircle, Lock, ShieldCheck,
+  EyeOff, Table as TableIcon
 } from 'lucide-react';
 import { 
   KECAMATAN_LIST, 
@@ -32,7 +33,11 @@ interface EntryViewProps {
   currentYear?: string;
   availableYears?: string[];
   onYearChange?: (year: string) => void;
+  isMobile?: boolean;
   isMobileLandscape?: boolean;
+  isTableHidden?: boolean;
+  onShowTable?: () => void;
+  onHideTable?: () => void;
 }
 
 interface SingleMonthRow {
@@ -61,7 +66,11 @@ export const EntryView: React.FC<EntryViewProps> = ({
   currentYear = '2026',
   availableYears = ['2026', '2025'],
   onYearChange,
-  isMobileLandscape = false
+  isMobile = false,
+  isMobileLandscape = false,
+  isTableHidden = false,
+  onShowTable,
+  onHideTable
 }) => {
   // Local fallback if setters are not provided by parent
   const [localCategory, setLocalCategory] = useState(activeCategory);
@@ -292,15 +301,15 @@ export const EntryView: React.FC<EntryViewProps> = ({
             </div>
           </div>
 
-          <div className={`flex items-center flex-wrap ${isMobileLandscape ? "gap-1.5" : "gap-2.5"}`}>
+          <div className={`flex items-center flex-wrap max-w-full ${isMobileLandscape ? "gap-1.5" : "gap-2"}`}>
             {/* Pilihan Metode Kontrasepsi */}
-            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300">
+            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 max-w-full min-w-0">
               <Layers className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-              <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Metode:</span>
+              <span className="text-[10px] text-slate-500 font-bold uppercase mr-1 shrink-0">Metode:</span>
               <select
                 value={currentCategory}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer max-w-[140px] sm:max-w-[200px] truncate"
               >
                 <optgroup label="Kelompok" className="bg-slate-800 text-slate-300 font-bold">
                   <option value="Semua Metode">SEMUA METODE</option>
@@ -316,7 +325,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
             </div>
 
             {/* Pilihan Bulan */}
-            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300">
+            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 shrink-0">
               <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
               <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Bulan:</span>
               <select
@@ -333,7 +342,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
             </div>
 
             {/* Pilihan Tahun Pelaporan */}
-            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300">
+            <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 shrink-0">
               <span className="text-[10px] text-slate-500 font-bold uppercase mr-1">Tahun:</span>
               <select
                 value={currentYear}
@@ -342,7 +351,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
                     onYearChange(e.target.value);
                   }
                 }}
-                className="bg-transparent text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
+                className="w-[52px] bg-transparent text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
               >
                 {availableYears.map(yr => (
                   <option key={yr} value={yr} className="bg-slate-800 text-slate-200 font-semibold">
@@ -354,6 +363,34 @@ export const EntryView: React.FC<EntryViewProps> = ({
           </div>
         </div>
 
+        {isTableHidden ? (
+          <div className="p-5 sm:p-6 bg-slate-800/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-200">
+                  Tabel Entri Capaian ({currentCategory})
+                </h3>
+                <span className="text-[10px] font-bold text-teal-400">
+                  {currentMonth} {currentYear || '2026'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                Tabel disembunyikan di tampilan mobile. Ketuk tombol untuk menampilkan tabel secara landscape otomatis.
+              </p>
+            </div>
+            {onShowTable && (
+              <button
+                type="button"
+                onClick={onShowTable}
+                className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-teal-500/20 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+              >
+                <TableIcon className="w-4 h-4" />
+                <span>Tampilkan Tabel</span>
+              </button>
+            )}
+          </div>
+        ) : (
+        <>
         {/* SATU FILTER PENCARIAN TUNGGAL & TOGGLE WILAYAH */}
         <div
           className={`bg-slate-900/70 border-b border-slate-700 flex flex-col md:flex-row md:items-center justify-between landscape-row ${
@@ -383,7 +420,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
             )}
           </div>
 
-          <div className="flex items-center text-xs text-slate-400 gap-3 shrink-0 flex-wrap">
+          <div className="flex items-center text-xs text-slate-400 gap-2.5 shrink-0 flex-wrap">
             {activeLockKecamatan && (
               <div className="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
                 <button
@@ -419,6 +456,17 @@ export const EntryView: React.FC<EntryViewProps> = ({
               <span className="text-[11px] bg-teal-500/10 text-teal-400 px-2 py-0.5 rounded border border-teal-500/20">
                 Filter: &ldquo;{searchQuery}&rdquo;
               </span>
+            )}
+            {isMobile && onHideTable && (
+              <button
+                type="button"
+                onClick={onHideTable}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-500/15 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/30 text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
+                title="Sembunyikan tabel dan kembali ke tampilan potret"
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                <span>Sembunyikan Tabel</span>
+              </button>
             )}
           </div>
         </div>
@@ -587,6 +635,8 @@ export const EntryView: React.FC<EntryViewProps> = ({
             </tbody>
           </table>
         </div>
+        </>
+        )}
       </div>
 
       {/* Modal Konfirmasi Reset Data ke Database Awal */}

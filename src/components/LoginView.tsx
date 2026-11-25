@@ -165,7 +165,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs pt-1">
+            <div className="flex items-center justify-between flex-wrap gap-2 text-xs pt-1">
               <label className="flex items-center space-x-2 text-slate-400 cursor-pointer">
                 <input
                   type="checkbox"

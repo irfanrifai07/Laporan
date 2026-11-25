@@ -193,6 +193,7 @@ export default function App() {
   const [isPortrait, setIsPortrait] = useState(() => getViewportInfo().portrait);
   const [landscapeOverride, setLandscapeOverride] = useState<'auto' | 'portrait'>('auto');
   const [showMobileBarChart, setShowMobileBarChart] = useState(false);
+  const [showMobileTable, setShowMobileTable] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 1024;
@@ -272,11 +273,12 @@ export default function App() {
     currentView === AppView.ENTRY ||
     (currentView === AppView.PPM && !isKecamatanUser);
 
-  // Di mobile, tampilan membutuhkan landscape saat membuka tabel ATAU saat Grafik Capaian Per Kecamatan ditampilkan
+  // Di mobile, tampilan membutuhkan landscape saat menampilkan tabel (showMobileTable) ATAU saat Grafik Capaian Per Kecamatan ditampilkan
+  const isTableLandscape = isTableView && showMobileTable;
   const isDashboardChartLandscape = currentView === AppView.DASHBOARD && showMobileBarChart;
-  const requiresLandscape = isTableView || isDashboardChartLandscape;
+  const requiresLandscape = isTableLandscape || isDashboardChartLandscape;
 
-  // Saat mobile & membuka tabel atau menampilkan grafik kecamatan, otomatis aktifkan mode landscape
+  // Saat mobile & menampilkan tabel atau menampilkan grafik kecamatan, otomatis aktifkan mode landscape
   const isCssAutoLandscape =
     Boolean(currentUser) && isMobile && isPortrait && requiresLandscape && landscapeOverride === 'auto';
   const isMobileLandscape =
@@ -287,6 +289,9 @@ export default function App() {
     if (view === AppView.PPM && isKecamatanUser) {
       setCurrentView(AppView.DASHBOARD);
       return;
+    }
+    if (view === AppView.DASHBOARD) {
+      setShowMobileTable(false);
     }
     if (view === AppView.TABLE || view === AppView.ENTRY || view === AppView.PPM) {
       setLandscapeOverride('auto');
@@ -984,177 +989,196 @@ export default function App() {
       <main className="flex-1 flex flex-col overflow-hidden relative min-w-0 w-full">
         <header
           className={cn(
-            "bg-slate-800 border-b border-slate-700 flex items-center justify-between shrink-0 z-10 gap-2",
-            isMobileLandscape ? "h-11 px-3" : "h-16 px-3 sm:px-6"
+            "bg-slate-800 border-b border-slate-700 shrink-0 z-10",
+            isMobileLandscape
+              ? "h-11 px-2.5 flex items-center justify-between gap-1.5"
+              : isMobile
+              ? "px-3 py-2.5 flex flex-col gap-2"
+              : "h-16 px-6 flex items-center justify-between gap-3"
           )}
         >
-          <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
-            <button 
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 sm:p-2 hover:bg-slate-700 rounded-lg text-slate-400 cursor-pointer shrink-0"
-              title="Menu Navigasi"
-            >
-              <Menu className={cn(isMobileLandscape ? "w-4 h-4" : "w-5 h-5")} />
-            </button>
-            <div className="flex flex-col min-w-0">
-              <h1
-                className={cn(
-                  "font-bold text-teal-400 uppercase tracking-tighter truncate",
-                  isMobileLandscape ? "text-xs" : "text-xs sm:text-sm"
-                )}
+          {/* Baris Atas Header (atau Baris Tunggal di Desktop / Landscape) */}
+          <div
+            className={cn(
+              "flex items-center justify-between gap-2 min-w-0",
+              isMobileLandscape ? "flex-1" : isMobile ? "w-full" : "flex-1"
+            )}
+          >
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+              <button 
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-1.5 sm:p-2 hover:bg-slate-700 rounded-lg text-slate-400 cursor-pointer shrink-0"
+                title="Menu Navigasi"
               >
-                {currentView === AppView.DASHBOARD 
-                  ? (isMobileLandscape ? 'Grafik Capaian' : 'Dashboard Visual Capaian')
-                  : currentView === AppView.TABLE 
-                  ? (isMobileLandscape ? 'Tabel Capaian' : 'Tabel Capaian Layanan')
-                  : currentView === AppView.PPM
-                  ? (isMobileLandscape ? 'Target PPM' : 'Data Target PPM Resmi Bojonegoro')
-                  : (isMobileLandscape ? 'Entri Data KB' : 'Manajemen Entri Data Metode KB')}
-              </h1>
-              {!isMobileLandscape && (
-                <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate">
-                  {currentView === AppView.PPM
-                    ? 'Target Resmi 28 Kecamatan'
-                    : `${activeCategory} \u2022 ${selectedMonth}`}
-                </p>
-              )}
+                <Menu className={cn(isMobileLandscape ? "w-4 h-4" : "w-5 h-5")} />
+              </button>
+              <div className="flex flex-col min-w-0">
+                <h1
+                  className={cn(
+                    "font-bold text-teal-400 uppercase tracking-tighter truncate",
+                    isMobileLandscape ? "text-[11px]" : "text-xs sm:text-sm"
+                  )}
+                >
+                  {currentView === AppView.DASHBOARD 
+                    ? (isMobileLandscape ? 'Grafik Capaian' : 'Dashboard Visual Capaian')
+                    : currentView === AppView.TABLE 
+                    ? (isMobileLandscape ? 'Tabel Capaian' : 'Tabel Capaian Layanan')
+                    : currentView === AppView.PPM
+                    ? (isMobileLandscape ? 'Target PPM' : 'Data Target PPM Resmi Bojonegoro')
+                    : (isMobileLandscape ? 'Entri Data KB' : 'Manajemen Entri Data Metode KB')}
+                </h1>
+                {!isMobileLandscape && (
+                  <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate">
+                    {currentView === AppView.PPM
+                      ? 'Target Resmi 28 Kecamatan'
+                      : `${activeCategory} \u2022 ${selectedMonth}`}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Navigasi Cepat Inline saat Mode Landscape Mobile (menggantikan bottom nav agar tabel/grafik lega) */}
-          {isMobileLandscape && (
-            <nav className="flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 rounded-lg p-0.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => handleNavigateView(AppView.DASHBOARD)}
-                className={cn(
-                  "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
-                  currentView === AppView.DASHBOARD
-                    ? "bg-teal-500 text-slate-950 font-black"
-                    : "text-slate-300 hover:text-white hover:bg-slate-800"
-                )}
-              >
-                Dashboard
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigateView(AppView.TABLE)}
-                className={cn(
-                  "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
-                  currentView === AppView.TABLE
-                    ? "bg-teal-500 text-slate-950 font-black"
-                    : "text-slate-300 hover:text-white hover:bg-slate-800"
-                )}
-              >
-                Data Tabel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigateView(AppView.ENTRY)}
-                className={cn(
-                  "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
-                  currentView === AppView.ENTRY
-                    ? "bg-teal-500 text-slate-950 font-black"
-                    : "text-slate-300 hover:text-white hover:bg-slate-800"
-                )}
-              >
-                Entri Data
-              </button>
-              {!isKecamatanUser && (
+            {/* Navigasi Cepat Inline saat Mode Landscape Mobile */}
+            {isMobileLandscape && (
+              <nav className="flex items-center gap-0.5 bg-slate-900/90 border border-slate-700/80 rounded-lg p-0.5 shrink min-w-0 overflow-x-auto">
                 <button
                   type="button"
-                  onClick={() => handleNavigateView(AppView.PPM)}
+                  onClick={() => handleNavigateView(AppView.DASHBOARD)}
                   className={cn(
-                    "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
-                    currentView === AppView.PPM
+                    "px-1.5 sm:px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0",
+                    currentView === AppView.DASHBOARD
                       ? "bg-teal-500 text-slate-950 font-black"
                       : "text-slate-300 hover:text-white hover:bg-slate-800"
                   )}
                 >
-                  Data PPM
+                  Dashboard
                 </button>
-              )}
-            </nav>
-          )}
-
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            {/* Tombol Toggle Orientasi untuk Tampilan Tabel atau Grafik di Mobile */}
-            {isMobile && requiresLandscape && isPortrait && (
-              <button
-                type="button"
-                onClick={() => setLandscapeOverride(prev => prev === 'auto' ? 'portrait' : 'auto')}
-                title={landscapeOverride === 'auto' ? 'Kembalikan ke mode potret' : 'Tampilkan mode landscape otomatis'}
-                className={cn(
-                  "flex items-center gap-1 rounded-lg border text-[10px] font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0",
-                  landscapeOverride === 'auto'
-                    ? "bg-teal-500/15 border-teal-500/40 text-teal-300 hover:bg-teal-500/25 px-2 py-1"
-                    : "bg-slate-900 border-slate-700 text-slate-300 hover:text-teal-300 px-2 py-1.5"
-                )}
-              >
-                {landscapeOverride === 'auto' ? (
-                  <>
-                    <Smartphone className="w-3 h-3" />
-                    <span>Potret</span>
-                  </>
-                ) : (
-                  <>
-                    <RotateCw className="w-3 h-3 text-teal-400" />
-                    <span>Landscape</span>
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Pemilih Tahun Pelaporan Global */}
-            <div
-              className={cn(
-                "flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-300 shadow-inner",
-                isMobileLandscape ? "px-2 py-1" : "px-2 sm:px-2.5 py-1.5"
-              )}
-            >
-              <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Tahun:</span>
-              <select
-                id="header-year-select"
-                value={currentPpmYear}
-                onChange={(e) => {
-                  if (e.target.value === '__add_new__') {
-                    setShowGlobalAddYearModal(true);
-                  } else {
-                    handleSwitchYear(e.target.value);
-                  }
-                }}
-                className="bg-transparent text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
-                title="Pilih tahun entri & target PPM"
-              >
-                {availablePpmYears.map(yr => (
-                  <option key={yr} value={yr} className="bg-slate-800 text-slate-200 font-semibold">
-                    {yr}
-                  </option>
-                ))}
-                {currentUser?.role === 'admin' && (
-                  <option value="__add_new__" className="bg-slate-800 text-teal-400 font-bold">
-                    + Tambah Tahun...
-                  </option>
-                )}
-              </select>
-            </div>
-
-            {/* Periode Selector, Refresh, dan Search hanya ditampilkan di Dashboard */}
-            {currentView === AppView.DASHBOARD && (
-              <>
-                <div
+                <button
+                  type="button"
+                  onClick={() => handleNavigateView(AppView.TABLE)}
                   className={cn(
-                    "flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-300 shadow-inner",
-                    isMobileLandscape ? "px-2 py-1" : "px-2 sm:px-2.5 py-1.5"
+                    "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                    currentView === AppView.TABLE
+                      ? "bg-teal-500 text-slate-950 font-black"
+                      : "text-slate-300 hover:text-white hover:bg-slate-800"
                   )}
                 >
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Periode:</span>
+                  Tabel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleNavigateView(AppView.ENTRY)}
+                  className={cn(
+                    "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                    currentView === AppView.ENTRY
+                      ? "bg-teal-500 text-slate-950 font-black"
+                      : "text-slate-300 hover:text-white hover:bg-slate-800"
+                  )}
+                >
+                  Entri
+                </button>
+                {!isKecamatanUser && (
+                  <button
+                    type="button"
+                    onClick={() => handleNavigateView(AppView.PPM)}
+                    className={cn(
+                      "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                      currentView === AppView.PPM
+                        ? "bg-teal-500 text-slate-950 font-black"
+                        : "text-slate-300 hover:text-white hover:bg-slate-800"
+                    )}
+                  >
+                    PPM
+                  </button>
+                )}
+              </nav>
+            )}
+
+            {/* Kontrol Kanan di Baris Atas */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Tombol Toggle Orientasi untuk Tampilan Tabel atau Grafik di Mobile */}
+              {isMobile && requiresLandscape && isPortrait && (
+                <button
+                  type="button"
+                  onClick={() => setLandscapeOverride(prev => prev === 'auto' ? 'portrait' : 'auto')}
+                  title={landscapeOverride === 'auto' ? 'Kembalikan ke mode potret' : 'Tampilkan mode landscape otomatis'}
+                  className={cn(
+                    "flex items-center gap-1 rounded-lg border text-[10px] font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0",
+                    landscapeOverride === 'auto'
+                      ? "bg-teal-500/15 border-teal-500/40 text-teal-300 hover:bg-teal-500/25 px-2 py-1"
+                      : "bg-slate-900 border-slate-700 text-slate-300 hover:text-teal-300 px-2 py-1.5"
+                  )}
+                >
+                  {landscapeOverride === 'auto' ? (
+                    <>
+                      <Smartphone className="w-3 h-3" />
+                      <span>Potret</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCw className="w-3 h-3 text-teal-400" />
+                      <span>Landscape</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Pemilih Tahun Pelaporan Global (lebar select dikunci agar opsi '+ Tambah Tahun...' tidak memperlebar tombol) */}
+              <div
+                className={cn(
+                  "flex items-center space-x-1 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-300 shadow-inner shrink-0",
+                  isMobileLandscape ? "px-2 py-1" : "px-2 py-1.5"
+                )}
+              >
+                <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                {!isMobile && (
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tahun:</span>
+                )}
+                <select
+                  id="header-year-select"
+                  value={currentPpmYear}
+                  onChange={(e) => {
+                    if (e.target.value === '__add_new__') {
+                      setShowGlobalAddYearModal(true);
+                    } else {
+                      handleSwitchYear(e.target.value);
+                    }
+                  }}
+                  className="w-[52px] bg-transparent text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
+                  title="Pilih tahun entri & target PPM"
+                >
+                  {availablePpmYears.map(yr => (
+                    <option key={yr} value={yr} className="bg-slate-800 text-slate-200 font-semibold">
+                      {yr}
+                    </option>
+                  ))}
+                  {currentUser?.role === 'admin' && (
+                    <option value="__add_new__" className="bg-slate-800 text-teal-400 font-bold">
+                      + Tambah Tahun...
+                    </option>
+                  )}
+                </select>
+              </div>
+
+              {/* Refresh tombol di baris atas untuk Mobile Portrait Dashboard */}
+              {isMobile && !isMobileLandscape && currentView === AppView.DASHBOARD && (
+                <button 
+                  onClick={() => fetchData()}
+                  disabled={isLoading || isRefreshing}
+                  title="Segarkan data dari Google Sheets"
+                  className="p-1.5 bg-slate-900 border border-slate-700 hover:bg-slate-700 text-slate-400 hover:text-teal-400 rounded-xl transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                >
+                  <RefreshCw className={cn("w-4 h-4", (isLoading || isRefreshing) && "animate-spin text-teal-400")} />
+                </button>
+              )}
+
+              {/* Periode Selector saat Landscape Dashboard (tanpa Search agar tidak terpotong) */}
+              {isMobileLandscape && currentView === AppView.DASHBOARD && (
+                <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 text-xs text-slate-300 shadow-inner shrink-0">
                   <select
                     id="header-period-select"
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
+                    className="w-[78px] bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
                   >
                     {MONTHS.map(m => (
                       <option key={m} value={m} className="bg-slate-800 text-slate-200">
@@ -1163,33 +1187,92 @@ export default function App() {
                     ))}
                   </select>
                 </div>
+              )}
 
-                {!isMobileLandscape && (
-                  <>
-                    <button 
-                      onClick={() => fetchData()}
-                      disabled={isLoading || isRefreshing}
-                      title="Segarkan data dari Google Sheets"
-                      className="p-1.5 sm:p-2 hover:bg-slate-700 text-slate-400 hover:text-teal-400 rounded-lg transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+              {/* Kontrol Desktop (>= 1024px) di Baris Tunggal */}
+              {!isMobile && currentView === AppView.DASHBOARD && (
+                <>
+                  <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Periode:</span>
+                    <select
+                      id="header-period-select"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
                     >
-                      <RefreshCw className={cn("w-4 h-4", (isLoading || isRefreshing) && "animate-spin text-teal-400")} />
-                    </button>
+                      {MONTHS.map(m => (
+                        <option key={m} value={m} className="bg-slate-800 text-slate-200">
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                    <div className="relative group">
-                      <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 sm:w-4 h-3.5 sm:h-4 text-slate-500" />
-                      <input 
-                        type="text" 
-                        placeholder="Cari..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-8 sm:pl-10 pr-3 sm:pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-20 sm:w-44 transition-all focus:w-28 sm:focus:w-52"
-                      />
-                    </div>
-                  </>
-                )}
-              </>
-            )}
+                  <button 
+                    onClick={() => fetchData()}
+                    disabled={isLoading || isRefreshing}
+                    title="Segarkan data dari Google Sheets"
+                    className="p-2 hover:bg-slate-700 text-slate-400 hover:text-teal-400 rounded-lg transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    <RefreshCw className={cn("w-4 h-4", (isLoading || isRefreshing) && "animate-spin text-teal-400")} />
+                  </button>
+
+                  <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Cari..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-10 pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-44 transition-all focus:w-52"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Baris Kedua Khusus Mobile Portrait Dashboard (Periode + Cari Kecamatan agar lega dan tidak terpotong) */}
+          {isMobile && !isMobileLandscape && currentView === AppView.DASHBOARD && (
+            <div className="flex items-center gap-2 w-full pt-2 border-t border-slate-700/60">
+              <div className="flex items-center space-x-1 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300 shadow-inner shrink-0">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Bulan:</span>
+                <select
+                  id="header-period-select"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
+                >
+                  {MONTHS.map(m => (
+                    <option key={m} value={m} className="bg-slate-800 text-slate-200">
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Cari kecamatan..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-teal-500 rounded-xl py-1.5 pl-8 pr-7 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    title="Hapus pencarian"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </header>
 
         {/* Global Toast Notification */}
@@ -1282,7 +1365,7 @@ export default function App() {
                     <div
                       className={cn(
                         "lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl shadow-xl relative overflow-hidden min-w-0",
-                        isMobileLandscape ? "p-3" : "p-6"
+                        isMobileLandscape ? "p-3" : "p-4 sm:p-6"
                       )}
                     >
                       <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
@@ -1360,7 +1443,7 @@ export default function App() {
                   )}
 
                   {/* Summary Pie Chart */}
-                  <div className="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl flex flex-col items-center min-w-0">
+                  <div className="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-xl p-4 sm:p-6 shadow-xl flex flex-col items-center min-w-0">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300 w-full text-center border-b border-slate-700 pb-3 mb-6 decoration-teal-500 decoration-2 underline-offset-8">Sisa dan Capaian</h3>
                     <div className="relative w-full h-[180px] mb-8 min-w-0">
                       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
@@ -1437,18 +1520,18 @@ export default function App() {
                 )}
 
                 {/* Panel Metode Kontrasepsi di dalam Dashboard */}
-                <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 sm:p-6 shadow-xl space-y-4">
+                <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 sm:p-6 shadow-xl space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/60 pb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2.5 rounded-xl bg-teal-500/15 text-teal-400 border border-teal-500/30">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="p-2.5 rounded-xl bg-teal-500/15 text-teal-400 border border-teal-500/30 shrink-0">
                         <Layers className="w-5 h-5" />
                       </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-sm font-black uppercase tracking-wider text-slate-200">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-200">
                             Metode Kontrasepsi & Capaian Pelayanan
                           </h3>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/30">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/30 shrink-0">
                             {selectedMonth}
                           </span>
                         </div>
@@ -1550,7 +1633,14 @@ export default function App() {
                   currentYear={currentPpmYear}
                   availableYears={availablePpmYears}
                   onYearChange={handleSwitchYear}
+                  isMobile={isMobile}
                   isMobileLandscape={isMobileLandscape}
+                  isTableHidden={isMobile && !showMobileTable}
+                  onShowTable={() => {
+                    setLandscapeOverride('auto');
+                    setShowMobileTable(true);
+                  }}
+                  onHideTable={() => setShowMobileTable(false)}
                 />
               </motion.div>
             ) : currentView === AppView.PPM && !isKecamatanUser ? (
@@ -1570,7 +1660,14 @@ export default function App() {
                   onYearChange={handleSwitchYear}
                   isAdmin={currentUser?.role === 'admin'}
                   onOpenEntrySidebar={handleOpenEntrySidebar}
+                  isMobile={isMobile}
                   isMobileLandscape={isMobileLandscape}
+                  isTableHidden={isMobile && !showMobileTable}
+                  onShowTable={() => {
+                    setLandscapeOverride('auto');
+                    setShowMobileTable(true);
+                  }}
+                  onHideTable={() => setShowMobileTable(false)}
                 />
               </motion.div>
             ) : (
@@ -1594,7 +1691,14 @@ export default function App() {
                   currentYear={currentPpmYear}
                   availableYears={availablePpmYears}
                   onYearChange={handleSwitchYear}
+                  isMobile={isMobile}
                   isMobileLandscape={isMobileLandscape}
+                  isTableHidden={isMobile && !showMobileTable}
+                  onShowTable={() => {
+                    setLandscapeOverride('auto');
+                    setShowMobileTable(true);
+                  }}
+                  onHideTable={() => setShowMobileTable(false)}
                 />
               </motion.div>
             )}
@@ -1603,12 +1707,12 @@ export default function App() {
 
         {/* Mobile Bottom Navigation Bar (Disembunyikan saat mode landscape tabel karena tab sudah ada di header atas) */}
         {!isMobileLandscape && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-850/95 backdrop-blur-md border-t border-slate-700/80 px-2 py-1.5 flex items-center justify-around shadow-2xl">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-850/95 backdrop-blur-md border-t border-slate-700/80 px-1.5 py-1.5 flex items-center justify-around shadow-2xl">
           <button
             type="button"
             onClick={() => handleNavigateView(AppView.DASHBOARD)}
             className={cn(
-              "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
+              "flex flex-col items-center justify-center py-1 px-2 sm:px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap",
               currentView === AppView.DASHBOARD
                 ? "text-teal-400 bg-teal-500/15 font-bold"
                 : "text-slate-400 hover:text-slate-200"
@@ -1622,7 +1726,7 @@ export default function App() {
             type="button"
             onClick={() => handleNavigateView(AppView.TABLE)}
             className={cn(
-              "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
+              "flex flex-col items-center justify-center py-1 px-2 sm:px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap",
               currentView === AppView.TABLE
                 ? "text-teal-400 bg-teal-500/15 font-bold"
                 : "text-slate-400 hover:text-slate-200"
@@ -1636,7 +1740,7 @@ export default function App() {
             type="button"
             onClick={() => handleNavigateView(AppView.ENTRY)}
             className={cn(
-              "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
+              "flex flex-col items-center justify-center py-1 px-2 sm:px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap",
               currentView === AppView.ENTRY
                 ? "text-teal-400 bg-teal-500/15 font-bold"
                 : "text-slate-400 hover:text-slate-200"
@@ -1651,7 +1755,7 @@ export default function App() {
               type="button"
               onClick={() => handleNavigateView(AppView.PPM)}
               className={cn(
-                "flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer",
+                "flex flex-col items-center justify-center py-1 px-2 sm:px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap",
                 currentView === AppView.PPM
                   ? "text-teal-400 bg-teal-500/15 font-bold"
                   : "text-slate-400 hover:text-slate-200"
