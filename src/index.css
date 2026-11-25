@@ -33,31 +33,7 @@
   }
 }
 
-/* Auto-landscape viewport rotation for mobile portrait screens when viewing tables */
-.mobile-auto-landscape {
-  position: fixed;
-  top: 0;
-  left: 100vw;
-  left: 100dvw;
-  width: 100vh;
-  width: 100dvh;
-  height: 100vw;
-  height: 100dvw;
-  transform: rotate(90deg);
-  transform-origin: top left;
-  overflow: hidden;
-  z-index: 1;
-}
-
-body.mobile-landscape-lock {
-  overflow: hidden;
-  height: 100vh;
-  height: 100dvh;
-  overscroll-behavior: none;
-  touch-action: manipulation;
-}
-
-/* Override mobile portrait grid stacking inside landscape container (both CSS-rotated and physical mobile landscape) */
+/* Override mobile portrait grid stacking when device is physically in mobile landscape */
 .mobile-landscape-active .landscape-grid-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

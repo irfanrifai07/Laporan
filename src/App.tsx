@@ -13,7 +13,7 @@ import {
   Layers, Globe,
   Activity, ArrowDownRight, ArrowUpRight, RefreshCw, AlertCircle,
   FileSpreadsheet, CheckCircle2, RotateCcw, Target, Download, Calendar, LogOut, KeyRound,
-  Smartphone, RotateCw, BarChart3, EyeOff
+  BarChart3, EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -195,7 +195,6 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(() => getViewportInfo().mobile);
   const [isPortrait, setIsPortrait] = useState(() => getViewportInfo().portrait);
   const [viewportMinDim, setViewportMinDim] = useState(() => getViewportInfo().minDim);
-  const [landscapeOverride, setLandscapeOverride] = useState<'auto' | 'portrait'>('auto');
   const [showMobileBarChart, setShowMobileBarChart] = useState(false);
   const [showMobileTable, setShowMobileTable] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -272,22 +271,8 @@ export default function App() {
     currentUser && (currentUser.role !== 'admin' || currentUser.kecamatan)
   );
 
-  // Menentukan apakah tampilan aktif berisi tabel data (Data Tabel, Entri Data, Data PPM)
-  const isTableView =
-    currentView === AppView.TABLE ||
-    currentView === AppView.ENTRY ||
-    (currentView === AppView.PPM && !isKecamatanUser);
-
-  // Di mobile, tampilan membutuhkan landscape saat menampilkan tabel (showMobileTable) ATAU saat Grafik Capaian Per Kecamatan ditampilkan
-  const isTableLandscape = isTableView && showMobileTable;
-  const isDashboardChartLandscape = currentView === AppView.DASHBOARD && showMobileBarChart;
-  const requiresLandscape = isTableLandscape || isDashboardChartLandscape;
-
-  // Saat mobile & menampilkan tabel atau menampilkan grafik kecamatan, otomatis aktifkan mode landscape
-  const isCssAutoLandscape =
-    Boolean(currentUser) && isMobile && isPortrait && requiresLandscape && landscapeOverride === 'auto';
-  const isMobileLandscape =
-    Boolean(currentUser) && isMobile && requiresLandscape && (isCssAutoLandscape || !isPortrait);
+  // Mode landscape aktif hanya jika pengguna memang memiringkan perangkat secara fisik ke landscape
+  const isMobileLandscape = Boolean(currentUser) && isMobile && !isPortrait;
 
   const handleNavigateView = (view: AppView) => {
     // Sembunyikan dan cegah akses ke Data PPM untuk user kecamatan
@@ -298,47 +283,12 @@ export default function App() {
     if (view === AppView.DASHBOARD) {
       setShowMobileTable(false);
     }
-    if (view === AppView.TABLE || view === AppView.ENTRY || view === AppView.PPM) {
-      setLandscapeOverride('auto');
-    }
     setCurrentView(view);
     setIsEntrySidebarOpen(false);
     if (isMobile) {
       setSidebarOpen(false);
     }
   };
-
-  // Upayakan kunci orientasi layar landscape saat di tampilan tabel atau grafik mobile (jika didukung browser)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const orientation = window.screen?.orientation as (ScreenOrientation & {
-      lock?: (orientation: string) => Promise<void>;
-      unlock?: () => void;
-    }) | undefined;
-
-    if (currentUser && isMobile && requiresLandscape && landscapeOverride === 'auto') {
-      orientation?.lock?.('landscape')?.catch(() => {});
-    } else {
-      try {
-        orientation?.unlock?.();
-      } catch {
-        // ignore
-      }
-    }
-  }, [currentUser, isMobile, requiresLandscape, landscapeOverride]);
-
-  // Kunci scroll body saat rotasi auto-landscape aktif agar tidak memantul di HP
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (isCssAutoLandscape) {
-      document.body.classList.add('mobile-landscape-lock');
-    } else {
-      document.body.classList.remove('mobile-landscape-lock');
-    }
-    return () => {
-      document.body.classList.remove('mobile-landscape-lock');
-    };
-  }, [isCssAutoLandscape]);
 
   useEffect(() => {
     if (currentUser?.kecamatan) {
@@ -813,8 +763,7 @@ export default function App() {
   return (
     <div
       className={cn(
-        "flex bg-slate-900 font-sans text-slate-100 overflow-hidden max-w-full",
-        isCssAutoLandscape ? "mobile-auto-landscape" : "h-[100dvh] w-full",
+        "flex bg-slate-900 font-sans text-slate-100 overflow-hidden max-w-full h-[100dvh] w-full",
         isMobileLandscape && "mobile-landscape-active"
       )}
     >
@@ -1102,32 +1051,6 @@ export default function App() {
 
             {/* Kontrol Kanan di Baris Atas */}
             <div className={cn("flex items-center shrink-0", isMobileLandscape ? "gap-1" : "gap-1.5 sm:gap-2")}>
-              {/* Tombol Toggle Orientasi untuk Tampilan Tabel atau Grafik di Mobile */}
-              {isMobile && requiresLandscape && isPortrait && (
-                <button
-                  type="button"
-                  onClick={() => setLandscapeOverride(prev => prev === 'auto' ? 'portrait' : 'auto')}
-                  title={landscapeOverride === 'auto' ? 'Kembalikan ke mode potret' : 'Tampilkan mode landscape otomatis'}
-                  className={cn(
-                    "flex items-center gap-1 rounded-lg border text-[9.5px] font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0",
-                    landscapeOverride === 'auto'
-                      ? "bg-teal-500/15 border-teal-500/40 text-teal-300 hover:bg-teal-500/25 px-1.5 py-1"
-                      : "bg-slate-900 border-slate-700 text-slate-300 hover:text-teal-300 px-2 py-1.5"
-                  )}
-                >
-                  {landscapeOverride === 'auto' ? (
-                    <>
-                      <Smartphone className="w-3 h-3" />
-                      <span>Potret</span>
-                    </>
-                  ) : (
-                    <>
-                      <RotateCw className="w-3 h-3 text-teal-400" />
-                      <span>Landscape</span>
-                    </>
-                  )}
-                </button>
-              )}
 
               {/* Pemilih Tahun Pelaporan Global (lebar select dikunci agar opsi '+ Tambah Tahun...' tidak memperlebar tombol) */}
               <div
@@ -1355,15 +1278,12 @@ export default function App() {
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                          Grafik disembunyikan di tampilan mobile. Ketuk tombol untuk menampilkan grafik secara landscape otomatis.
+                          Grafik disembunyikan di tampilan mobile. Ketuk tombol untuk menampilkan grafik.
                         </p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => {
-                          setLandscapeOverride('auto');
-                          setShowMobileBarChart(true);
-                        }}
+                        onClick={() => setShowMobileBarChart(true)}
                         className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-teal-500/20 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
                       >
                         <BarChart3 className="w-4 h-4" />
@@ -1677,10 +1597,7 @@ export default function App() {
                   isMobile={isMobile}
                   isMobileLandscape={isMobileLandscape}
                   isTableHidden={isMobile && !showMobileTable}
-                  onShowTable={() => {
-                    setLandscapeOverride('auto');
-                    setShowMobileTable(true);
-                  }}
+                  onShowTable={() => setShowMobileTable(true)}
                   onHideTable={() => setShowMobileTable(false)}
                 />
               </motion.div>
@@ -1704,10 +1621,7 @@ export default function App() {
                   isMobile={isMobile}
                   isMobileLandscape={isMobileLandscape}
                   isTableHidden={isMobile && !showMobileTable}
-                  onShowTable={() => {
-                    setLandscapeOverride('auto');
-                    setShowMobileTable(true);
-                  }}
+                  onShowTable={() => setShowMobileTable(true)}
                   onHideTable={() => setShowMobileTable(false)}
                 />
               </motion.div>
@@ -1735,10 +1649,7 @@ export default function App() {
                   isMobile={isMobile}
                   isMobileLandscape={isMobileLandscape}
                   isTableHidden={isMobile && !showMobileTable}
-                  onShowTable={() => {
-                    setLandscapeOverride('auto');
-                    setShowMobileTable(true);
-                  }}
+                  onShowTable={() => setShowMobileTable(true)}
                   onHideTable={() => setShowMobileTable(false)}
                 />
               </motion.div>

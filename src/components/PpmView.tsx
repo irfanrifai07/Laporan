@@ -421,7 +421,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                Tabel disembunyikan di tampilan mobile. Ketuk tombol untuk menampilkan tabel secara landscape otomatis.
+                Tabel disembunyikan di tampilan mobile. Ketuk tombol untuk menampilkan tabel.
               </p>
             </div>
             {onShowTable && (
@@ -478,7 +478,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
                 type="button"
                 onClick={onHideTable}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-500/15 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/30 text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
-                title="Sembunyikan tabel dan kembali ke tampilan potret"
+                title="Sembunyikan tabel"
               >
                 <EyeOff className="w-3.5 h-3.5" />
                 <span>Sembunyikan Tabel</span>
