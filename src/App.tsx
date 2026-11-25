@@ -775,7 +775,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-40 lg:hidden cursor-pointer"
+            className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs z-40 cursor-pointer"
           />
         )}
       </AnimatePresence>
@@ -814,7 +814,7 @@ export default function App() {
           {isMobile && (
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/60 lg:hidden cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/60 cursor-pointer"
               title="Tutup Menu"
             >
               <X className="w-5 h-5" />
@@ -822,123 +822,171 @@ export default function App() {
           )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-2 custom-scrollbar">
-          <div className="px-4 py-2">
-            {(sidebarOpen || isMobile) && <label className="text-[10px] uppercase tracking-widest text-slate-500 block mb-2 px-2 font-bold">MENU UTAMA</label>}
-            <button 
-              onClick={() => handleNavigateView(AppView.DASHBOARD)}
-              className={cn(
-                "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
-                currentView === AppView.DASHBOARD ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
-              )}
-            >
-              <LayoutDashboard className="w-5 h-5 shrink-0" />
-              {(sidebarOpen || isMobile) && <span className="ml-3 text-xs font-semibold">Dashboard</span>}
-            </button>
-
-            <button 
-              onClick={() => handleNavigateView(AppView.TABLE)}
-              className={cn(
-                "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
-                currentView === AppView.TABLE ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
-              )}
-            >
-              <TableIcon className="w-5 h-5 shrink-0" />
-              {(sidebarOpen || isMobile) && <span className="ml-3 text-xs font-semibold">Data Tabel</span>}
-            </button>
-
-            <button 
-              onClick={() => handleNavigateView(AppView.ENTRY)}
-              className={cn(
-                "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
-                currentView === AppView.ENTRY ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
-              )}
-            >
-              <FileSpreadsheet className="w-5 h-5 shrink-0 text-teal-400" />
-              {(sidebarOpen || isMobile) && (
-                <div className="ml-3 flex items-center justify-between flex-1">
-                  <span className="text-xs font-semibold">Entri Data</span>
+        {isMobile ? (
+          /* Di mobile, sidebar hanya berisi info akun & tombol logout (Dashboard, Data Tabel, Entri Data, Data PPM dihilangkan karena sudah ada di navigasi utama mobile) */
+          <div className="flex-1 flex flex-col justify-between p-4 overflow-y-auto custom-scrollbar">
+            <div className="space-y-3">
+              <label className="text-[10px] uppercase tracking-widest text-slate-500 block px-1 font-bold">
+                AKUN PENGGUNA
+              </label>
+              <div className="p-3 rounded-xl bg-slate-900/70 border border-slate-700/80 flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center shrink-0 font-black text-sm shadow-inner">
+                  {currentUser.name.charAt(0)}
                 </div>
-              )}
-            </button>
-            {!isKecamatanUser && (
-              <button 
-                onClick={() => handleNavigateView(AppView.PPM)}
-                className={cn(
-                  "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-2 cursor-pointer",
-                  currentView === AppView.PPM ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
-                )}
-              >
-                <Target className="w-5 h-5 shrink-0 text-teal-400" />
-                {(sidebarOpen || isMobile) && (
-                  <div className="ml-3 flex items-center justify-between flex-1">
-                    <span className="text-xs font-semibold">Data PPM</span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">Target</span>
-                  </div>
-                )}
-              </button>
-            )}
-          </div>
-        </nav>
-
-        {/* User Profile & Logout at bottom of sidebar */}
-        <div className="p-3 border-t border-slate-700/80 bg-slate-850/90 shrink-0">
-          <div className={cn("flex items-center", (sidebarOpen || isMobile) ? "justify-between" : "justify-center")}>
-            <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center shrink-0 font-black text-xs shadow-inner">
-                {currentUser.name.charAt(0)}
-              </div>
-              {(sidebarOpen || isMobile) && (
-                <div className="truncate">
-                  <div className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-100 truncate">{currentUser.name}</div>
                   <div className="text-[10px] text-teal-400 font-semibold truncate">
                     {currentUser.roleLabel} {currentUser.kecamatan ? `• ${currentUser.kecamatan}` : ''}
                   </div>
                 </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSidebarOpen(false);
+                  setIsChangePasswordOpen(true);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-900/60 hover:bg-teal-500/15 text-slate-200 hover:text-teal-300 border border-slate-700 hover:border-teal-500/30 text-xs font-bold transition-colors cursor-pointer"
+              >
+                <KeyRound className="w-4 h-4 text-teal-400 shrink-0" />
+                <span>Ubah Kata Sandi</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSidebarOpen(false);
+                handleLogout();
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-rose-200 border border-rose-500/35 text-xs font-black transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span>Keluar (Logout)</span>
+            </button>
+          </div>
+        ) : (
+          <>
+            <nav className="flex-1 overflow-y-auto py-2 custom-scrollbar">
+              <div className="px-4 py-2">
+                {sidebarOpen && <label className="text-[10px] uppercase tracking-widest text-slate-500 block mb-2 px-2 font-bold">MENU UTAMA</label>}
+                <button 
+                  onClick={() => handleNavigateView(AppView.DASHBOARD)}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
+                    currentView === AppView.DASHBOARD ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
+                  )}
+                >
+                  <LayoutDashboard className="w-5 h-5 shrink-0" />
+                  {sidebarOpen && <span className="ml-3 text-xs font-semibold">Dashboard</span>}
+                </button>
+
+                <button 
+                  onClick={() => handleNavigateView(AppView.TABLE)}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
+                    currentView === AppView.TABLE ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
+                  )}
+                >
+                  <TableIcon className="w-5 h-5 shrink-0" />
+                  {sidebarOpen && <span className="ml-3 text-xs font-semibold">Data Tabel</span>}
+                </button>
+
+                <button 
+                  onClick={() => handleNavigateView(AppView.ENTRY)}
+                  className={cn(
+                    "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-1 cursor-pointer",
+                    currentView === AppView.ENTRY ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
+                  )}
+                >
+                  <FileSpreadsheet className="w-5 h-5 shrink-0 text-teal-400" />
+                  {sidebarOpen && (
+                    <div className="ml-3 flex items-center justify-between flex-1">
+                      <span className="text-xs font-semibold">Entri Data</span>
+                    </div>
+                  )}
+                </button>
+                {!isKecamatanUser && (
+                  <button 
+                    onClick={() => handleNavigateView(AppView.PPM)}
+                    className={cn(
+                      "w-full flex items-center px-3 py-2.5 rounded-lg transition-colors mb-2 cursor-pointer",
+                      currentView === AppView.PPM ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold" : "text-slate-400 hover:bg-slate-700/50"
+                    )}
+                  >
+                    <Target className="w-5 h-5 shrink-0 text-teal-400" />
+                    {sidebarOpen && (
+                      <div className="ml-3 flex items-center justify-between flex-1">
+                        <span className="text-xs font-semibold">Data PPM</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/30">Target</span>
+                      </div>
+                    )}
+                  </button>
+                )}
+              </div>
+            </nav>
+
+            {/* User Profile & Logout at bottom of sidebar (Desktop) */}
+            <div className="p-3 border-t border-slate-700/80 bg-slate-850/90 shrink-0">
+              <div className={cn("flex items-center", sidebarOpen ? "justify-between" : "justify-center")}>
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-teal-500/20 to-emerald-500/20 text-teal-300 border border-teal-500/30 flex items-center justify-center shrink-0 font-black text-xs shadow-inner">
+                    {currentUser.name.charAt(0)}
+                  </div>
+                  {sidebarOpen && (
+                    <div className="truncate">
+                      <div className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</div>
+                      <div className="text-[10px] text-teal-400 font-semibold truncate">
+                        {currentUser.roleLabel} {currentUser.kecamatan ? `• ${currentUser.kecamatan}` : ''}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {sidebarOpen && (
+                  <div className="flex items-center space-x-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsChangePasswordOpen(true)}
+                      title="Ubah Kata Sandi (Password)"
+                      className="p-1.5 hover:bg-teal-500/20 text-slate-400 hover:text-teal-300 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      title="Keluar dari Akun (Logout)"
+                      className="p-1.5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              {!sidebarOpen && (
+                <div className="mt-2 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsChangePasswordOpen(true)}
+                    title="Ubah Kata Sandi (Password)"
+                    className="w-full flex justify-center p-1.5 hover:bg-teal-500/20 text-slate-400 hover:text-teal-300 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    title="Keluar dari Akun (Logout)"
+                    className="w-full flex justify-center p-1.5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
               )}
             </div>
-            {(sidebarOpen || isMobile) && (
-              <div className="flex items-center space-x-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsChangePasswordOpen(true)}
-                  title="Ubah Kata Sandi (Password)"
-                  className="p-1.5 hover:bg-teal-500/20 text-slate-400 hover:text-teal-300 rounded-lg transition-colors cursor-pointer"
-                >
-                  <KeyRound className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  title="Keluar dari Akun (Logout)"
-                  className="p-1.5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-          {!sidebarOpen && !isMobile && (
-            <div className="mt-2 space-y-1">
-              <button
-                type="button"
-                onClick={() => setIsChangePasswordOpen(true)}
-                title="Ubah Kata Sandi (Password)"
-                className="w-full flex justify-center p-1.5 hover:bg-teal-500/20 text-slate-400 hover:text-teal-300 rounded-lg transition-colors cursor-pointer"
-              >
-                <KeyRound className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                title="Keluar dari Akun (Logout)"
-                className="w-full flex justify-center p-1.5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </aside>
 
       {/* Main Content */}
@@ -1224,7 +1272,7 @@ export default function App() {
         <div
           className={cn(
             "flex-1 overflow-y-auto overflow-x-hidden scroll-smooth bg-slate-900/50 custom-scrollbar",
-            isMobileLandscape ? "p-2 pb-2.5" : "p-3 sm:p-6 pb-24 lg:pb-6"
+            isMobileLandscape ? "p-2 pb-2.5" : isMobile ? "p-3 sm:p-6 pb-24" : "p-3 sm:p-6 pb-6"
           )}
         >
           {/* Stats Summary - Visible on Dashboard view (saat grafik mobile landscape terbuka, ditaruh di bawah grafik agar grafik langsung penuh di layar) */}
@@ -1657,9 +1705,9 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        {/* Mobile Bottom Navigation Bar (Disembunyikan saat mode landscape tabel karena tab sudah ada di header atas) */}
-        {!isMobileLandscape && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-850/95 backdrop-blur-md border-t border-slate-700/80 px-1 py-1.5 flex items-center justify-around gap-0.5 shadow-2xl">
+        {/* Mobile Bottom Navigation Bar (Disembunyikan saat mode landscape karena tab sudah ada di header atas) */}
+        {isMobile && !isMobileLandscape && (
+        <nav className="fixed bottom-0 left-0 right-0 z-30 bg-slate-850/95 backdrop-blur-md border-t border-slate-700/80 px-1 py-1.5 flex items-center justify-around gap-0.5 shadow-2xl">
           <button
             type="button"
             onClick={() => handleNavigateView(AppView.DASHBOARD)}
