@@ -488,13 +488,97 @@ export const PpmView: React.FC<PpmViewProps> = ({
         </div>
 
         {/* Tabel Data PPM */}
+        {isMobile && !isMobileLandscape ? (
+          <div className="divide-y divide-slate-700/60">
+            {filteredList.map((row, idx) => (
+              <div key={row.kecamatan} className="p-3 space-y-2 bg-slate-800/40">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 text-slate-400 shrink-0">
+                      #{idx + 1}
+                    </span>
+                    <span className="text-xs font-bold text-slate-100 truncate">{row.kecamatan}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-black text-teal-400 tabular-nums">
+                      {formatNumber(row.total)}
+                    </span>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditForKecamatan(row.kecamatan)}
+                        className="inline-flex items-center px-2 py-1 rounded-lg bg-teal-500/15 text-teal-300 border border-teal-500/30 text-[10px] font-bold cursor-pointer"
+                      >
+                        <Edit3 className="w-3 h-3 mr-1" />
+                        Ubah
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-1 text-center">
+                  <div className="bg-slate-900/60 rounded py-1 px-0.5">
+                    <span className="text-[8px] text-purple-400 font-bold block">IUD</span>
+                    <span className="text-[10px] text-slate-200 font-semibold tabular-nums">{row.IUD || '-'}</span>
+                  </div>
+                  <div className="bg-slate-900/60 rounded py-1 px-0.5">
+                    <span className="text-[8px] text-rose-400 font-bold block">MOW</span>
+                    <span className="text-[10px] text-slate-200 font-semibold tabular-nums">{row.MOW || '-'}</span>
+                  </div>
+                  <div className="bg-slate-900/60 rounded py-1 px-0.5">
+                    <span className="text-[8px] text-blue-400 font-bold block">MOP</span>
+                    <span className="text-[10px] text-slate-200 font-semibold tabular-nums">{row.MOP || '-'}</span>
+                  </div>
+                  <div className="bg-slate-900/60 rounded py-1 px-0.5">
+                    <span className="text-[8px] text-amber-400 font-bold block">IMPLAN</span>
+                    <span className="text-[10px] text-slate-200 font-semibold tabular-nums">{row.IMPLAN || '-'}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-1 text-center">
+                  <div className="bg-slate-900/60 rounded py-1 px-0.5">
+                    <span className="text-[8px] text-emerald-400 font-bold block">SUNTIK</span>
+                    <span className="text-[10px] text-slate-200 font-semibold tabular-nums">{row.SUNTIK || '-'}</span>
+                  </div>
+                  <div className="bg-slate-900/60 rounded py-1 px-0.5">
+                    <span className="text-[8px] text-teal-400 font-bold block">PIL</span>
+                    <span className="text-[10px] text-slate-200 font-semibold tabular-nums">{row.PIL || '-'}</span>
+                  </div>
+                  <div className="bg-slate-900/60 rounded py-1 px-0.5">
+                    <span className="text-[8px] text-cyan-400 font-bold block">KONDOM</span>
+                    <span className="text-[10px] text-slate-200 font-semibold tabular-nums">{row.KONDOM || '-'}</span>
+                  </div>
+                  <div className="bg-indigo-500/10 rounded py-1 px-0.5">
+                    <span className="text-[8px] text-indigo-300 font-bold block">MKJP</span>
+                    <span className="text-[10px] text-indigo-200 font-bold tabular-nums">{formatNumber(row.mkjp)}</span>
+                  </div>
+                  <div className="bg-sky-500/10 rounded py-1 px-0.5">
+                    <span className="text-[8px] text-sky-300 font-bold block">N-MKJP</span>
+                    <span className="text-[10px] text-sky-200 font-bold tabular-nums">{formatNumber(row.nonMkjp)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <div className="p-3 bg-teal-500/15 border-t-2 border-teal-500/40 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-teal-300 uppercase">JUMLAH KABUPATEN</span>
+                <span className="text-sm font-black text-teal-300 tabular-nums">{formatNumber(totalBojonegoro.total)}</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-300 tabular-nums">
+                <span>MKJP: <strong className="text-indigo-300">{formatNumber(totalBojonegoro.mkjp)}</strong></span>
+                <span>Non-MKJP: <strong className="text-sky-300">{formatNumber(totalBojonegoro.nonMkjp)}</strong></span>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className={isMobile ? "w-full overflow-hidden" : "overflow-x-auto custom-scrollbar"}>
           <table className={`w-full text-left border-collapse ${isMobile ? "table-fixed" : "min-w-[1050px]"}`}>
             <thead>
               {/* Grup Header */}
-              <tr className={`bg-slate-900/95 font-black text-slate-400 uppercase border-b border-slate-700 ${isMobile ? "text-[8px]" : "text-[10px]"}`}>
+              <tr className={`bg-slate-900/95 font-black text-slate-400 uppercase border-b border-slate-700 ${isMobile ? "text-[7.5px]" : "text-[10px]"}`}>
                 <th className={isMobile ? "px-0.5 py-1.5 text-center w-[4%]" : "px-3.5 py-3 text-center w-10 sticky left-0 bg-slate-900 z-10"} rowSpan={2}>No</th>
-                <th className={isMobile ? `px-1 py-1.5 truncate ${isAdmin ? "w-[17%]" : "w-[22%]"}` : "px-4 py-3 min-w-[150px] sticky left-10 bg-slate-900 z-10"} rowSpan={2}>Kecamatan</th>
+                <th className={isMobile ? `px-1 py-1.5 truncate ${isAdmin ? "w-[16%]" : "w-[21%]"}` : "px-4 py-3 min-w-[150px] sticky left-10 bg-slate-900 z-10"} rowSpan={2}>Kecamatan</th>
                 <th className={`${isMobile ? "px-0.5 py-1" : "px-3 py-2"} text-center bg-indigo-500/10 text-indigo-300 border-x border-slate-700/60`} colSpan={4}>
                   {isMobile ? "MKJP" : "Metode MKJP"}
                 </th>
@@ -504,23 +588,23 @@ export const PpmView: React.FC<PpmViewProps> = ({
                 <th className={`${isMobile ? "px-0.5 py-1" : "px-3 py-2"} text-center bg-slate-800/80 border-r border-slate-700/60`} colSpan={2}>
                   Subtotal
                 </th>
-                <th className={`${isMobile ? `px-0.5 py-1.5 ${isAdmin ? "w-[9.5%]" : "w-[14%]"}` : "px-4 py-3"} text-center bg-teal-500/15 text-teal-300 font-black`} rowSpan={2}>
+                <th className={`${isMobile ? "px-0.5 py-1.5 w-[9.5%]" : "px-4 py-3"} text-center bg-teal-500/15 text-teal-300 font-black`} rowSpan={2}>
                   {isMobile ? "Total" : "Total PPM"}
                 </th>
                 {isAdmin && (
-                  <th className={isMobile ? "px-0.5 py-1.5 text-center w-[9.5%]" : "px-3 py-3 text-center w-28"} rowSpan={2}>{isMobile ? "Aksi" : "Aksi Target"}</th>
+                  <th className={isMobile ? "px-0.5 py-1.5 text-center w-[10%]" : "px-3 py-3 text-center w-28"} rowSpan={2}>{isMobile ? "Aksi" : "Aksi Target"}</th>
                 )}
               </tr>
-              <tr className={`bg-slate-900/80 font-black text-slate-400 uppercase border-b border-slate-700 ${isMobile ? "text-[7.5px]" : "text-[10px]"}`}>
-                <th className={`${isMobile ? "px-0.5 py-1 w-[5.5%]" : "px-3 py-2"} text-center text-purple-400 bg-purple-500/5`}>IUD</th>
-                <th className={`${isMobile ? "px-0.5 py-1 w-[5.5%]" : "px-3 py-2"} text-center text-rose-400 bg-rose-500/5`}>MOW</th>
-                <th className={`${isMobile ? "px-0.5 py-1 w-[5%]" : "px-3 py-2"} text-center text-blue-400 bg-blue-500/5`}>MOP</th>
-                <th className={`${isMobile ? "px-0.5 py-1 w-[6.5%]" : "px-3 py-2"} text-center text-amber-400 bg-amber-500/5 border-r border-slate-700/60`}>IMPLAN</th>
-                <th className={`${isMobile ? "px-0.5 py-1 w-[7%]" : "px-3 py-2"} text-center text-emerald-400 bg-emerald-500/5`}>SUNTIK</th>
-                <th className={`${isMobile ? "px-0.5 py-1 w-[6.5%]" : "px-3 py-2"} text-center text-teal-400 bg-teal-500/5`}>PIL</th>
-                <th className={`${isMobile ? "px-0.5 py-1 w-[6.5%]" : "px-3 py-2"} text-center text-cyan-400 bg-cyan-500/5 border-r border-slate-700/60`}>KONDOM</th>
-                <th className={`${isMobile ? "px-0.5 py-1 w-[8.5%]" : "px-3 py-2"} text-center text-indigo-300 bg-indigo-500/10`}>MKJP</th>
-                <th className={`${isMobile ? "px-0.5 py-1 w-[9%]" : "px-3 py-2"} text-center text-sky-300 bg-sky-500/10 border-r border-slate-700/60`}>{isMobile ? "N-MKJP" : "Non-MKJP"}</th>
+              <tr className={`bg-slate-900/80 font-black text-slate-400 uppercase border-b border-slate-700 ${isMobile ? "text-[7px]" : "text-[10px]"}`}>
+                <th className={`${isMobile ? `px-0.5 py-1 ${isAdmin ? "w-[5.5%]" : "w-[6%]"}` : "px-3 py-2"} text-center text-purple-400 bg-purple-500/5`}>IUD</th>
+                <th className={`${isMobile ? `px-0.5 py-1 ${isAdmin ? "w-[5.5%]" : "w-[6%]"}` : "px-3 py-2"} text-center text-rose-400 bg-rose-500/5`}>MOW</th>
+                <th className={`${isMobile ? `px-0.5 py-1 ${isAdmin ? "w-[5%]" : "w-[5.5%]"}` : "px-3 py-2"} text-center text-blue-400 bg-blue-500/5`}>MOP</th>
+                <th className={`${isMobile ? `px-0.5 py-1 ${isAdmin ? "w-[7%]" : "w-[7.5%]"}` : "px-3 py-2"} text-center text-amber-400 bg-amber-500/5 border-r border-slate-700/60`}>IMPLAN</th>
+                <th className={`${isMobile ? `px-0.5 py-1 ${isAdmin ? "w-[7.5%]" : "w-[8%]"}` : "px-3 py-2"} text-center text-emerald-400 bg-emerald-500/5`}>SUNTIK</th>
+                <th className={`${isMobile ? `px-0.5 py-1 ${isAdmin ? "w-[6%]" : "w-[6.5%]"}` : "px-3 py-2"} text-center text-teal-400 bg-teal-500/5`}>PIL</th>
+                <th className={`${isMobile ? `px-0.5 py-1 ${isAdmin ? "w-[7.5%]" : "w-[8%]"}` : "px-3 py-2"} text-center text-cyan-400 bg-cyan-500/5 border-r border-slate-700/60`}>KONDOM</th>
+                <th className={`${isMobile ? `px-0.5 py-1 ${isAdmin ? "w-[8%]" : "w-[8.5%]"}` : "px-3 py-2"} text-center text-indigo-300 bg-indigo-500/10`}>MKJP</th>
+                <th className={`${isMobile ? `px-0.5 py-1 ${isAdmin ? "w-[8.5%]" : "w-[9%]"}` : "px-3 py-2"} text-center text-sky-300 bg-sky-500/10 border-r border-slate-700/60`}>{isMobile ? "N-MKJP" : "Non-MKJP"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
@@ -543,7 +627,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
                       {idx + 1}
                     </td>
 
-                    <td className={`${isMobile ? "px-1 py-1.5 text-[9px] truncate" : "px-3 py-3 text-xs sticky left-10 z-10"} font-bold text-slate-200 ${isSelected ? "bg-slate-850" : "bg-slate-800"}`} title={row.kecamatan}>
+                    <td className={`${isMobile ? "px-1 py-1.5 text-[8.5px] truncate" : "px-3 py-3 text-xs sticky left-10 z-10"} font-bold text-slate-200 ${isSelected ? "bg-slate-850" : "bg-slate-800"}`} title={row.kecamatan}>
                       {row.kecamatan}
                     </td>
 
@@ -604,7 +688,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
                           type="button"
                           onClick={() => handleOpenEditForKecamatan(row.kecamatan)}
                           className={`inline-flex items-center justify-center rounded-lg bg-teal-500/10 hover:bg-teal-500 hover:text-white text-teal-400 border border-teal-500/30 font-bold transition-all cursor-pointer ${
-                            isMobile ? "px-1 py-0.5 text-[8.5px]" : "px-2 py-1 text-xs"
+                            isMobile ? "px-1 py-0.5 text-[8px]" : "px-2 py-1 text-xs"
                           }`}
                           title={`Ubah target PPM tahun ${activeYear} untuk ${row.kecamatan}`}
                         >
@@ -622,7 +706,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
                 <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-2.5 py-3 text-xs sticky left-0 z-10"} text-center font-bold text-teal-400 bg-slate-850`}>
                   -
                 </td>
-                <td className={`${isMobile ? "px-1 py-1.5 text-[9px] truncate" : "px-3 py-3 text-xs sticky left-10 z-10"} font-black text-teal-300 uppercase tracking-wide bg-slate-850`}>
+                <td className={`${isMobile ? "px-1 py-1.5 text-[8.5px] truncate" : "px-3 py-3 text-xs sticky left-10 z-10"} font-black text-teal-300 uppercase tracking-wide bg-slate-850`}>
                   {isMobile ? "JUMLAH KAB." : "JUMLAH (KABUPATEN BOJONEGORO)"}
                 </td>
                 <td className={`${isMobile ? "px-0.5 py-1.5 text-[9px]" : "px-3 py-3.5 text-xs"} text-center font-black text-purple-300 tabular-nums`}>
@@ -664,6 +748,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
             </tbody>
           </table>
         </div>
+        )}
         </>
         )}
       </div>
@@ -930,9 +1015,45 @@ export const PpmView: React.FC<PpmViewProps> = ({
                 </div>
               ) : (
                 /* MODE 2: Tabel Spreadsheet Seluruh 28 Kecamatan */
+                isMobile && !isMobileLandscape ? (
+                  <div className="space-y-2.5 max-h-[55vh] overflow-y-auto custom-scrollbar pr-0.5">
+                    {KECAMATAN_LIST.map((kec, idx) => {
+                      const vals = tempTargets[kec] || RAW_PPM_DATA[kec];
+                      const rowTotal = (vals.IUD || 0) + (vals.MOW || 0) + (vals.MOP || 0) +
+                                       (vals.IMPLAN || 0) + (vals.SUNTIK || 0) + (vals.PIL || 0) +
+                                       (vals.KONDOM || 0);
+                      return (
+                        <div key={kec} className="bg-slate-950/60 border border-slate-700 rounded-xl p-2.5 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-slate-100 truncate">
+                              {idx + 1}. {kec}
+                            </span>
+                            <span className="text-xs font-black text-teal-400 tabular-nums shrink-0">
+                              Total: {formatNumber(rowTotal)}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {METHOD_KEYS.map(m => (
+                              <div key={m}>
+                                <label className="block text-[9px] font-bold text-slate-400 mb-0.5 text-center">{m}</label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={vals[m] ?? 0}
+                                  onChange={(e) => handleMethodInputChange(kec, m, e.target.value)}
+                                  className="w-full bg-slate-900 border border-slate-700 focus:border-teal-500 rounded px-1 py-1 text-center text-[11px] font-semibold text-slate-100 focus:outline-none tabular-nums"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
                 <div className={`border border-slate-700 rounded-xl overflow-y-auto custom-scrollbar ${isMobile ? "overflow-x-hidden" : "overflow-x-auto"} ${isMobileLandscape ? "max-h-[210px]" : "max-h-[500px]"}`}>
                   <table className={`w-full text-left border-collapse ${isMobile ? "table-fixed" : "min-w-[900px]"}`}>
-                    <thead className={`sticky top-0 bg-slate-900 font-black uppercase text-slate-400 z-20 border-b border-slate-700 ${isMobile ? "text-[8px]" : "text-[10px]"}`}>
+                    <thead className={`sticky top-0 bg-slate-900 font-black uppercase text-slate-400 z-20 border-b border-slate-700 ${isMobile ? "text-[7.5px]" : "text-[10px]"}`}>
                       <tr>
                         <th className={isMobile ? "p-1 text-center w-[5%]" : "p-2.5 text-center w-10 sticky left-0 bg-slate-900 z-20"}>No</th>
                         <th className={isMobile ? "p-1 w-[19%] truncate" : "p-2.5 sticky left-10 bg-slate-900 z-20 min-w-[130px]"}>Kecamatan</th>
@@ -977,6 +1098,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
                     </tbody>
                   </table>
                 </div>
+                )
               )}
             </div>
 

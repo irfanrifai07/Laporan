@@ -176,21 +176,25 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState('Februari');
   const getViewportInfo = () => {
     if (typeof window === 'undefined') {
-      return { mobile: false, portrait: false };
+      return { mobile: false, portrait: false, minDim: 1024 };
     }
     const w = window.innerWidth;
     const h = window.innerHeight;
     const minDim = Math.min(w, h);
     const maxDim = Math.max(w, h);
-    const mobile = w < 1024 || (minDim < 768 && maxDim <= 1024);
+    const isCoarsePointer =
+      typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    const mobile = w < 1024 || (minDim < 768 && maxDim <= 1024) || (isCoarsePointer && minDim <= 900);
     return {
       mobile,
-      portrait: h > w
+      portrait: h > w,
+      minDim
     };
   };
 
   const [isMobile, setIsMobile] = useState(() => getViewportInfo().mobile);
   const [isPortrait, setIsPortrait] = useState(() => getViewportInfo().portrait);
+  const [viewportMinDim, setViewportMinDim] = useState(() => getViewportInfo().minDim);
   const [landscapeOverride, setLandscapeOverride] = useState<'auto' | 'portrait'>('auto');
   const [showMobileBarChart, setShowMobileBarChart] = useState(false);
   const [showMobileTable, setShowMobileTable] = useState(false);
@@ -206,9 +210,10 @@ export default function App() {
   // Monitor window resize & orientation change to maintain optimal responsive layout on computer and mobile
   useEffect(() => {
     const handleResize = () => {
-      const { mobile, portrait } = getViewportInfo();
+      const { mobile, portrait, minDim } = getViewportInfo();
       setIsMobile(mobile);
       setIsPortrait(portrait);
+      setViewportMinDim(minDim);
       if (mobile) {
         setSidebarOpen(false);
       } else {
@@ -803,11 +808,13 @@ export default function App() {
     );
   }
 
+  const mobileLandscapeChartHeight = Math.max(175, Math.min(250, viewportMinDim - 130));
+
   return (
     <div
       className={cn(
-        "flex bg-slate-900 font-sans text-slate-100 overflow-hidden",
-        isCssAutoLandscape ? "mobile-auto-landscape" : "h-screen",
+        "flex bg-slate-900 font-sans text-slate-100 overflow-hidden max-w-full",
+        isCssAutoLandscape ? "mobile-auto-landscape" : "h-[100dvh] w-full",
         isMobileLandscape && "mobile-landscape-active"
       )}
     >
@@ -991,7 +998,7 @@ export default function App() {
           className={cn(
             "bg-slate-800 border-b border-slate-700 shrink-0 z-10",
             isMobileLandscape
-              ? "h-11 px-2.5 flex items-center justify-between gap-1.5"
+              ? "h-11 px-2 flex items-center justify-between gap-1"
               : isMobile
               ? "px-3 py-2.5 flex flex-col gap-2"
               : "h-16 px-6 flex items-center justify-between gap-3"
@@ -1000,11 +1007,11 @@ export default function App() {
           {/* Baris Atas Header (atau Baris Tunggal di Desktop / Landscape) */}
           <div
             className={cn(
-              "flex items-center justify-between gap-2 min-w-0",
+              "flex items-center justify-between gap-1.5 sm:gap-2 min-w-0",
               isMobileLandscape ? "flex-1" : isMobile ? "w-full" : "flex-1"
             )}
           >
-            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+            <div className="flex items-center space-x-1.5 sm:space-x-3 min-w-0 flex-1">
               <button 
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="p-1.5 sm:p-2 hover:bg-slate-700 rounded-lg text-slate-400 cursor-pointer shrink-0"
@@ -1016,7 +1023,7 @@ export default function App() {
                 <h1
                   className={cn(
                     "font-bold text-teal-400 uppercase tracking-tighter truncate",
-                    isMobileLandscape ? "text-[11px]" : "text-xs sm:text-sm"
+                    isMobileLandscape ? "text-[10.5px]" : "text-xs sm:text-sm"
                   )}
                 >
                   {currentView === AppView.DASHBOARD 
@@ -1044,7 +1051,7 @@ export default function App() {
                   type="button"
                   onClick={() => handleNavigateView(AppView.DASHBOARD)}
                   className={cn(
-                    "px-1.5 sm:px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0",
+                    "px-1.5 py-0.5 rounded-md text-[9.5px] font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0",
                     currentView === AppView.DASHBOARD
                       ? "bg-teal-500 text-slate-950 font-black"
                       : "text-slate-300 hover:text-white hover:bg-slate-800"
@@ -1056,7 +1063,7 @@ export default function App() {
                   type="button"
                   onClick={() => handleNavigateView(AppView.TABLE)}
                   className={cn(
-                    "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                    "px-1.5 py-0.5 rounded-md text-[9.5px] font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0",
                     currentView === AppView.TABLE
                       ? "bg-teal-500 text-slate-950 font-black"
                       : "text-slate-300 hover:text-white hover:bg-slate-800"
@@ -1068,7 +1075,7 @@ export default function App() {
                   type="button"
                   onClick={() => handleNavigateView(AppView.ENTRY)}
                   className={cn(
-                    "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                    "px-1.5 py-0.5 rounded-md text-[9.5px] font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0",
                     currentView === AppView.ENTRY
                       ? "bg-teal-500 text-slate-950 font-black"
                       : "text-slate-300 hover:text-white hover:bg-slate-800"
@@ -1081,7 +1088,7 @@ export default function App() {
                     type="button"
                     onClick={() => handleNavigateView(AppView.PPM)}
                     className={cn(
-                      "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                      "px-1.5 py-0.5 rounded-md text-[9.5px] font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0",
                       currentView === AppView.PPM
                         ? "bg-teal-500 text-slate-950 font-black"
                         : "text-slate-300 hover:text-white hover:bg-slate-800"
@@ -1094,7 +1101,7 @@ export default function App() {
             )}
 
             {/* Kontrol Kanan di Baris Atas */}
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className={cn("flex items-center shrink-0", isMobileLandscape ? "gap-1" : "gap-1.5 sm:gap-2")}>
               {/* Tombol Toggle Orientasi untuk Tampilan Tabel atau Grafik di Mobile */}
               {isMobile && requiresLandscape && isPortrait && (
                 <button
@@ -1102,9 +1109,9 @@ export default function App() {
                   onClick={() => setLandscapeOverride(prev => prev === 'auto' ? 'portrait' : 'auto')}
                   title={landscapeOverride === 'auto' ? 'Kembalikan ke mode potret' : 'Tampilkan mode landscape otomatis'}
                   className={cn(
-                    "flex items-center gap-1 rounded-lg border text-[10px] font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0",
+                    "flex items-center gap-1 rounded-lg border text-[9.5px] font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0",
                     landscapeOverride === 'auto'
-                      ? "bg-teal-500/15 border-teal-500/40 text-teal-300 hover:bg-teal-500/25 px-2 py-1"
+                      ? "bg-teal-500/15 border-teal-500/40 text-teal-300 hover:bg-teal-500/25 px-1.5 py-1"
                       : "bg-slate-900 border-slate-700 text-slate-300 hover:text-teal-300 px-2 py-1.5"
                   )}
                 >
@@ -1126,10 +1133,10 @@ export default function App() {
               <div
                 className={cn(
                   "flex items-center space-x-1 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-300 shadow-inner shrink-0",
-                  isMobileLandscape ? "px-2 py-1" : "px-2 py-1.5"
+                  isMobileLandscape ? "px-1.5 py-0.5" : "px-2 py-1.5"
                 )}
               >
-                <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-teal-400 shrink-0" />
                 {!isMobile && (
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tahun:</span>
                 )}
@@ -1143,7 +1150,10 @@ export default function App() {
                       handleSwitchYear(e.target.value);
                     }
                   }}
-                  className="w-[52px] bg-transparent text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
+                  className={cn(
+                    "bg-transparent font-black text-indigo-300 focus:outline-none cursor-pointer",
+                    isMobileLandscape ? "w-[44px] text-[10.5px]" : "w-[50px] text-xs"
+                  )}
                   title="Pilih tahun entri & target PPM"
                 >
                   {availablePpmYears.map(yr => (
@@ -1173,12 +1183,12 @@ export default function App() {
 
               {/* Periode Selector saat Landscape Dashboard (tanpa Search agar tidak terpotong) */}
               {isMobileLandscape && currentView === AppView.DASHBOARD && (
-                <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-2 py-1 text-xs text-slate-300 shadow-inner shrink-0">
+                <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-1.5 py-0.5 text-xs text-slate-300 shadow-inner shrink-0">
                   <select
                     id="header-period-select"
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="w-[78px] bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
+                    className="w-[68px] bg-transparent text-[10.5px] font-bold text-teal-400 focus:outline-none cursor-pointer"
                   >
                     {MONTHS.map(m => (
                       <option key={m} value={m} className="bg-slate-800 text-slate-200">
@@ -1404,8 +1414,11 @@ export default function App() {
                           )}
                         </div>
                       </div>
-                      <div className={cn("w-full min-w-0", isMobileLandscape ? "h-[215px]" : "h-[270px] sm:h-[350px]")}>
-                        <ResponsiveContainer key={isMobileLandscape ? 'bar-landscape' : isMobile ? 'bar-portrait' : 'bar-desktop'} width="100%" height="100%" minWidth={0} minHeight={0}>
+                      <div
+                        className={cn("w-full min-w-0", !isMobileLandscape && "h-[280px] sm:h-[350px]")}
+                        style={isMobileLandscape ? { height: `${mobileLandscapeChartHeight}px` } : undefined}
+                      >
+                        <ResponsiveContainer key={isMobileLandscape ? `bar-landscape-${viewportMinDim}` : isMobile ? 'bar-portrait' : 'bar-desktop'} width="100%" height="100%" minWidth={0} minHeight={0}>
                           <BarChart
                             data={chartData}
                             margin={{
@@ -1419,19 +1432,21 @@ export default function App() {
                             <XAxis 
                               dataKey="kecamatan" 
                               interval={0} 
-                              height={isMobileLandscape ? 58 : isMobile ? 62 : 68}
+                              padding={{ left: 6, right: 6 }}
+                              height={isMobileLandscape ? 58 : isMobile ? 74 : 68}
                               tick={{
                                 fontSize: isMobileLandscape ? 7.5 : isMobile ? 6.5 : 9,
                                 fill: '#94a3b8',
                                 fontWeight: 600
                               }}
-                              angle={-45}
+                              angle={isMobile && !isMobileLandscape ? -90 : -45}
                               textAnchor="end"
                               tickMargin={4}
+                              dy={isMobile && !isMobileLandscape ? -2 : 0}
                               stroke="#334155"
                             />
                             <YAxis 
-                              width={isMobile ? 34 : 44}
+                              width={isMobile ? 36 : 44}
                               tick={{ fontSize: isMobile ? 9 : 10, fill: '#94a3b8' }}
                               stroke="#334155"
                               domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)]}
@@ -1439,7 +1454,8 @@ export default function App() {
                             />
                             <Tooltip 
                               cursor={{ fill: 'rgba(20, 184, 166, 0.05)' }}
-                              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }}
+                              wrapperStyle={{ zIndex: 30, maxWidth: '210px' }}
+                              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '11px' }}
                               itemStyle={{ color: '#2dd4bf', fontWeight: 'bold' }}
                               formatter={(val: any) => [`${Number(val).toFixed(2)}%`, 'Prosentase']}
                             />
@@ -1489,7 +1505,12 @@ export default function App() {
                               className="fill-slate-100 font-black text-lg"
                             />
                           </Pie>
-                          <Tooltip />
+                          <Tooltip
+                            wrapperStyle={{ zIndex: 30 }}
+                            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '11px', color: '#f1f5f9' }}
+                            itemStyle={{ color: '#e2e8f0', fontWeight: 'bold' }}
+                            formatter={(val: any) => formatNumber(Number(val))}
+                          />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -1563,7 +1584,7 @@ export default function App() {
                   </div>
 
                   {/* Grid Seluruh Alokon & Kelompok Agregasi (Semua Metode, MKJP, NON MKJP & 7 Alokon) */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 landscape-grid-5 gap-2.5 sm:gap-3">
                     {DASHBOARD_CATEGORIES.map(item => {
                       const isSelected = activeCategory.toUpperCase().trim() === item.id.toUpperCase().trim();
 
@@ -1727,47 +1748,47 @@ export default function App() {
 
         {/* Mobile Bottom Navigation Bar (Disembunyikan saat mode landscape tabel karena tab sudah ada di header atas) */}
         {!isMobileLandscape && (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-850/95 backdrop-blur-md border-t border-slate-700/80 px-1.5 py-1.5 flex items-center justify-around shadow-2xl">
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-850/95 backdrop-blur-md border-t border-slate-700/80 px-1 py-1.5 flex items-center justify-around gap-0.5 shadow-2xl">
           <button
             type="button"
             onClick={() => handleNavigateView(AppView.DASHBOARD)}
             className={cn(
-              "flex flex-col items-center justify-center py-1 px-2 sm:px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap",
+              "flex-1 min-w-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer whitespace-nowrap",
               currentView === AppView.DASHBOARD
                 ? "text-teal-400 bg-teal-500/15 font-bold"
                 : "text-slate-400 hover:text-slate-200"
             )}
           >
             <LayoutDashboard className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] tracking-tight">Dashboard</span>
+            <span className="text-[10px] tracking-tight truncate">Dashboard</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleNavigateView(AppView.TABLE)}
             className={cn(
-              "flex flex-col items-center justify-center py-1 px-2 sm:px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap",
+              "flex-1 min-w-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer whitespace-nowrap",
               currentView === AppView.TABLE
                 ? "text-teal-400 bg-teal-500/15 font-bold"
                 : "text-slate-400 hover:text-slate-200"
             )}
           >
             <TableIcon className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] tracking-tight">Data Tabel</span>
+            <span className="text-[10px] tracking-tight truncate">Data Tabel</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleNavigateView(AppView.ENTRY)}
             className={cn(
-              "flex flex-col items-center justify-center py-1 px-2 sm:px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap",
+              "flex-1 min-w-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer whitespace-nowrap",
               currentView === AppView.ENTRY
                 ? "text-teal-400 bg-teal-500/15 font-bold"
                 : "text-slate-400 hover:text-slate-200"
             )}
           >
             <FileSpreadsheet className="w-5 h-5 mb-0.5 text-teal-400" />
-            <span className="text-[10px] tracking-tight">Entri Data</span>
+            <span className="text-[10px] tracking-tight truncate">Entri Data</span>
           </button>
 
           {!isKecamatanUser && (
@@ -1775,14 +1796,14 @@ export default function App() {
               type="button"
               onClick={() => handleNavigateView(AppView.PPM)}
               className={cn(
-                "flex flex-col items-center justify-center py-1 px-2 sm:px-3 rounded-xl transition-all cursor-pointer whitespace-nowrap",
+                "flex-1 min-w-0 flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all cursor-pointer whitespace-nowrap",
                 currentView === AppView.PPM
                   ? "text-teal-400 bg-teal-500/15 font-bold"
                   : "text-slate-400 hover:text-slate-200"
               )}
             >
               <Layers className="w-5 h-5 mb-0.5" />
-              <span className="text-[10px] tracking-tight">Data PPM</span>
+              <span className="text-[10px] tracking-tight truncate">Data PPM</span>
             </button>
           )}
         </nav>

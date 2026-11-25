@@ -496,6 +496,111 @@ export const EntryView: React.FC<EntryViewProps> = ({
         </div>
 
         {/* TABEL PER BULAN DENGAN FORMAT TAMPILAN AWAL */}
+        {isMobile && !isMobileLandscape ? (
+          <div className="divide-y divide-slate-700/60">
+            {displayedRows.map((row, idx) => {
+              const isTotalRow = row.isJumlah;
+              const isUserDistrict = Boolean(
+                activeLockKecamatan &&
+                row.kecamatan.toUpperCase().trim() === activeLockKecamatan.toUpperCase().trim()
+              );
+              const isLockedRow = isKecamatanUser && !isUserDistrict && !isTotalRow;
+
+              return (
+                <div
+                  key={row.kecamatan || idx}
+                  className={`p-3 space-y-2 ${
+                    isTotalRow
+                      ? "bg-teal-500/10 border-t-2 border-teal-500/40"
+                      : isUserDistrict
+                      ? "bg-teal-500/15"
+                      : "bg-slate-800/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 shrink-0 ${
+                        isTotalRow ? "text-teal-300" : "text-slate-400"
+                      }`}>
+                        {isTotalRow ? "TOTAL" : `#${idx + 1}`}
+                      </span>
+                      <span className={`text-xs font-bold truncate ${
+                        isTotalRow ? "text-teal-300 uppercase" : "text-slate-100"
+                      }`}>
+                        {row.kecamatan}
+                      </span>
+                    </div>
+
+                    {!isTotalRow && (
+                      isLockedRow ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-lg bg-slate-900 text-slate-500 border border-slate-700 text-[10px] font-semibold shrink-0">
+                          <Lock className="w-3 h-3 mr-1" />
+                          Terkunci
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onOpenEntrySidebar(row.kecamatan)}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black cursor-pointer shrink-0 ${
+                            isUserDistrict
+                              ? "bg-teal-500 text-slate-950"
+                              : "bg-teal-500/15 text-teal-300 border border-teal-500/30"
+                          }`}
+                        >
+                          <Edit3 className="w-3 h-3 mr-1" />
+                          Entri
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 flex-1 bg-slate-900 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          row.percentage >= 80 ? "bg-emerald-500" : row.percentage >= 50 ? "bg-amber-500" : "bg-rose-500"
+                        }`}
+                        style={{ width: `${Math.min(row.percentage, 100)}%` }}
+                      />
+                    </div>
+                    <span className={`text-[11px] font-black tabular-nums shrink-0 ${
+                      row.percentage >= 80 ? "text-emerald-400" : row.percentage >= 50 ? "text-amber-400" : "text-rose-400"
+                    }`}>
+                      {row.percentage.toFixed(2)}%
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-1 text-center">
+                    <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                      <span className="text-[8px] text-slate-400 uppercase block">PPM</span>
+                      <span className="text-[10px] font-bold text-slate-200 tabular-nums">{formatNumber(row.ppm)}</span>
+                    </div>
+                    <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                      <span className="text-[8px] text-slate-400 uppercase block">Lalu</span>
+                      <span className="text-[10px] font-semibold text-slate-300 tabular-nums">{formatNumber(row.blnLalu)}</span>
+                    </div>
+                    <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                      <span className="text-[8px] text-sky-400 uppercase block">Ini</span>
+                      <span className="text-[10px] font-bold text-sky-400 tabular-nums">{formatNumber(row.blnIni)}</span>
+                    </div>
+                    <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                      <span className="text-[8px] text-teal-400 uppercase block">Jml</span>
+                      <span className="text-[10px] font-black text-teal-400 tabular-nums">{formatNumber(row.jumlah)}</span>
+                    </div>
+                    <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                      <span className="text-[8px] text-slate-400 uppercase block">Sisa</span>
+                      <span className={`text-[10px] font-bold tabular-nums ${
+                        row.sisa <= 0 ? "text-emerald-400" : "text-rose-400"
+                      }`}>
+                        {formatNumber(row.sisa)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
         <div className={isMobile ? "w-full overflow-hidden" : "overflow-x-auto custom-scrollbar"}>
           <table className={`w-full text-left border-collapse ${isMobile ? "table-fixed" : "min-w-[900px]"}`}>
             <thead>
@@ -644,6 +749,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
             </tbody>
           </table>
         </div>
+        )}
         </>
         )}
       </div>

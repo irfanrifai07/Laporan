@@ -708,6 +708,96 @@ export const TableView: React.FC<TableViewProps> = ({
           </div>
         ) : (
           /* TABEL PER BULAN (Detail Bulan Lalu & Bulan Ini) */
+          isMobile && !isMobileLandscape ? (
+            <div className="divide-y divide-slate-700/60">
+              {displayedSingleMonthRows.map((row, idx) => {
+                const isTotalRow = row.isJumlah;
+                return (
+                  <div
+                    key={row.kecamatan || idx}
+                    className={`p-3 space-y-2 ${
+                      isTotalRow ? "bg-teal-500/10 border-t-2 border-teal-500/40" : "bg-slate-800/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 shrink-0 ${
+                          isTotalRow ? "text-teal-300" : "text-slate-400"
+                        }`}>
+                          {isTotalRow ? "TOTAL" : `#${idx + 1}`}
+                        </span>
+                        <span className={`text-xs font-bold truncate ${
+                          isTotalRow ? "text-teal-300 uppercase" : "text-slate-100"
+                        }`}>
+                          {row.kecamatan}
+                        </span>
+                      </div>
+                      <span className={`text-xs font-black tabular-nums shrink-0 ${
+                        row.percentage >= 80 ? "text-emerald-400" : row.percentage >= 50 ? "text-amber-400" : "text-rose-400"
+                      }`}>
+                        {row.percentage.toFixed(2)}%
+                      </span>
+                    </div>
+
+                    <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          row.percentage >= 80 ? "bg-emerald-500" : row.percentage >= 50 ? "bg-amber-500" : "bg-rose-500"
+                        }`}
+                        style={{ width: `${Math.min(row.percentage, 100)}%` }}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-5 gap-1 text-center pt-1">
+                      <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                        <span className="text-[8px] text-slate-400 uppercase block">PPM</span>
+                        <span className="text-[10px] font-bold text-slate-200 tabular-nums">{formatNumber(row.ppm)}</span>
+                      </div>
+                      <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                        <span className="text-[8px] text-slate-400 uppercase block">Lalu</span>
+                        <span className="text-[10px] font-semibold text-slate-300 tabular-nums">{formatNumber(row.blnLalu)}</span>
+                      </div>
+                      <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                        <span className="text-[8px] text-sky-400 uppercase block">Ini</span>
+                        <span className="text-[10px] font-bold text-sky-400 tabular-nums">{formatNumber(row.blnIni)}</span>
+                      </div>
+                      <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                        <span className="text-[8px] text-teal-400 uppercase block">Jml</span>
+                        <span className="text-[10px] font-black text-teal-400 tabular-nums">{formatNumber(row.jumlah)}</span>
+                      </div>
+                      <div className="bg-slate-900/60 rounded-lg py-1 px-0.5">
+                        <span className="text-[8px] text-slate-400 uppercase block">Sisa</span>
+                        <span className={`text-[10px] font-bold tabular-nums ${
+                          row.sisa <= 0 ? "text-emerald-400" : "text-rose-400"
+                        }`}>
+                          {formatNumber(row.sisa)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {displayedSingleMonthRows.length === 0 && (
+                <div className="px-6 py-12 text-center text-slate-400 space-y-2">
+                  <Search className="w-8 h-8 text-slate-600 mx-auto" />
+                  <p className="text-sm font-bold text-slate-300">Data Tidak Ditemukan</p>
+                  <p className="text-xs text-slate-500">
+                    Tidak ada data yang cocok dengan pencarian &ldquo;{searchQuery}&rdquo;.
+                  </p>
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="mt-2 text-xs text-teal-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      Hapus filter pencarian
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
           <div className={isMobile ? "w-full overflow-hidden" : "overflow-x-auto custom-scrollbar"}>
             <table className={`w-full text-left border-collapse ${isMobile ? "table-fixed" : "min-w-[850px]"}`}>
               <thead>
@@ -824,6 +914,7 @@ export const TableView: React.FC<TableViewProps> = ({
               </tbody>
             </table>
           </div>
+          )
         )}
         </>
         )}
