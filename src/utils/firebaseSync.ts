@@ -10,6 +10,7 @@ import {
   where,
   onSnapshot,
   setDoc,
+  deleteDoc,
   getDocs,
   writeBatch,
   serverTimestamp,
@@ -27,7 +28,8 @@ import {
   getOfficialPpm, 
   PpmTargetMap, 
   RAW_PPM_DATA, 
-  setActivePpmTargets 
+  setActivePpmTargets,
+  createEmptyPpmTargets
 } from '../data/ppmData';
 import {
   syncDataWithOfficialPpm,
@@ -390,7 +392,7 @@ export async function savePpmTargetsToFirebase(
     batch.set(doc(db, 'kb_meta', 'config'), {
       appId: APP_ID,
       activeYear: cleanYear,
-      enteredMonths: getEnteredMonths(),
+      enteredMonths: getEnteredMonths(undefined, cleanYear),
       updatedBy: sanitizeUpdatedBy(updatedBy),
       updatedAt: serverTimestamp(),
     }, { merge: true });
@@ -404,6 +406,55 @@ export async function savePpmTargetsToFirebase(
     setActivePpmTargets(targets, cleanYear);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+/**
+ * Kosongkan (hapus menjadi 0) seluruh data target PPM untuk satu tahun tertentu secara real-time
+ */
+export async function clearPpmTargetsForYearInFirebase(
+  year: string,
+  updatedBy = 'ADMIN'
+): Promise<PpmTargetMap> {
+  const cleanYear = (year || '2026').trim().slice(0, 4);
+  const emptyTargets = createEmptyPpmTargets();
+  if (!cleanYear.match(/^[0-9]{4}$/)) return emptyTargets;
+
+  await savePpmTargetsToFirebase(cleanYear, emptyTargets, updatedBy);
+  return emptyTargets;
+}
+
+/**
+ * Hapus permanen dokumen target PPM tahun tertentu dari Firestore (untuk tahun non-default)
+ */
+export async function deletePpmTargetsYearFromFirebase(
+  year: string,
+  updatedBy = 'ADMIN'
+): Promise<void> {
+  const cleanYear = (year || '').trim().slice(0, 4);
+  if (!cleanYear.match(/^[0-9]{4}$/)) return;
+
+  const docId = `targets_${cleanYear}`;
+  const path = `kb_ppm_targets/${docId}`;
+
+  try {
+    await deleteDoc(doc(db, 'kb_ppm_targets', docId));
+    await setDoc(doc(db, 'kb_meta', 'config'), {
+      appId: APP_ID,
+      activeYear: '2026',
+      enteredMonths: getEnteredMonths(undefined, '2026'),
+      updatedBy: sanitizeUpdatedBy(updatedBy),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+
+    try {
+      localStorage.removeItem(`laporan_kb_ppm_targets_${cleanYear}`);
+      if (localStorage.getItem('laporan_kb_active_ppm_year') === cleanYear) {
+        localStorage.setItem('laporan_kb_active_ppm_year', '2026');
+      }
+    } catch {}
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
 
@@ -509,10 +560,7 @@ export function subscribeToRealtimeKbData(
         }
       });
 
-      const availableYears = Array.from(yearMap.keys()).sort().reverse();
-      if (!availableYears.includes('2026')) {
-        availableYears.unshift('2026');
-      }
+      const availableYears = getAvailableYears();
 
       const activeTargets = yearMap.get(latestActiveYear) || RAW_PPM_DATA;
       latestPpmTargets = activeTargets;

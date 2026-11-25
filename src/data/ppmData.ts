@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ContraceptiveMethod } from '../types';
+import { ContraceptiveMethod, KECAMATAN_LIST } from '../types';
 
 export interface KecamatanPpmTarget {
   kecamatan: string;
@@ -100,6 +100,14 @@ export function calculateKabupatenPpmTotal(list: KecamatanPpmTarget[]): Kecamata
 // In-Memory store untuk target PPM yang sedang aktif (dapat diubah oleh Admin)
 let activePpmTargetsStore: PpmTargetMap = { ...RAW_PPM_DATA };
 let activePpmYearStore: string = '2026';
+
+export function createEmptyPpmTargets(): PpmTargetMap {
+  const empty: PpmTargetMap = {};
+  KECAMATAN_LIST.forEach((kec) => {
+    empty[kec] = { IUD: 0, MOW: 0, MOP: 0, KONDOM: 0, IMPLAN: 0, SUNTIK: 0, PIL: 0 };
+  });
+  return empty;
+}
 
 export function getActivePpmTargets(): PpmTargetMap {
   return activePpmTargetsStore;

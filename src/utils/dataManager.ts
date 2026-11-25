@@ -323,22 +323,29 @@ export function syncDataWithOfficialPpm(
  * Empties all entered achievement data (blnLalu, blnIni, jumlah, percentage) to 0,
  * keeping official PPM target and setting sisa equal to ppm.
  */
-export function emptyEnteredAchievements(data: RawDataRow[]): RawDataRow[] {
-  resetEnteredMonths();
+export function emptyEnteredAchievements(
+  data: RawDataRow[],
+  customPpmTargets?: PpmTargetMap,
+  year?: string
+): RawDataRow[] {
+  const activeYear = (year || data?.[0]?.[9] || '2026').toString().trim();
+  resetEnteredMonths(activeYear);
   if (!Array.isArray(data) || data.length === 0) {
-    return generateMasterDatasetFromOfficialPpm();
+    return generateMasterDatasetFromOfficialPpm(customPpmTargets, activeYear);
   }
   return data.map(row => {
     const kec = row[0];
     const category = row[7];
     const month = row[8];
-    const ppm = getOfficialPpm(kec, category) || (parseFloat(String(row[1])) || 0);
+    const ppm = customPpmTargets
+      ? getOfficialPpm(kec, category, customPpmTargets)
+      : (getOfficialPpm(kec, category) || (parseFloat(String(row[1])) || 0));
     const blnLalu = 0;
     const blnIni = 0;
     const jumlah = 0;
     const percentage = 0;
     const sisa = ppm;
-    return [kec, ppm, blnLalu, blnIni, jumlah, percentage, sisa, category, month] as RawDataRow;
+    return [kec, ppm, blnLalu, blnIni, jumlah, percentage, sisa, category, month, activeYear] as RawDataRow;
   });
 }
 

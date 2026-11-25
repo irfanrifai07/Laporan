@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, Label
@@ -47,6 +47,8 @@ import {
   subscribeToRealtimeKbData,
   clearAllEntriesInFirebase,
   savePpmTargetsToFirebase,
+  clearPpmTargetsForYearInFirebase,
+  deletePpmTargetsYearFromFirebase,
   getDatasetForYearFromEntries,
   FirestoreKbEntryDoc
 } from './utils/firebaseSync';
@@ -299,6 +301,11 @@ export default function App() {
   const [allPpmTargetsByYear, setAllPpmTargetsByYear] = useState<Map<string, PpmTargetMap>>(new Map());
   const [showGlobalAddYearModal, setShowGlobalAddYearModal] = useState(false);
   const [newYearInput, setNewYearInput] = useState('');
+  const currentPpmYearRef = useRef(currentPpmYear);
+
+  useEffect(() => {
+    currentPpmYearRef.current = currentPpmYear;
+  }, [currentPpmYear]);
 
   // Auto-sync any data change to localStorage continuously per active year
   useEffect(() => {
@@ -311,7 +318,7 @@ export default function App() {
     const initialLocal = loadLocalEntriesFromStorage(currentPpmYear);
     const unsubscribe = subscribeToRealtimeKbData(
       (syncedDataset, _lastUpdatedBy, activeYear) => {
-        if (activeYear && activeYear !== currentPpmYear) {
+        if (activeYear && activeYear !== currentPpmYearRef.current) {
           setCurrentPpmYear(activeYear);
           setActivePpmYear(activeYear);
         }
@@ -326,7 +333,7 @@ export default function App() {
           next.set(year, targets);
           return next;
         });
-        if (year === currentPpmYear) {
+        if (year === currentPpmYearRef.current) {
           setCurrentPpmTargets(targets);
         }
         if (availableYears && availableYears.length > 0) {
@@ -411,6 +418,11 @@ export default function App() {
   // Handler simpan target PPM oleh Admin ke Firebase & sinkronisasi ke seluruh sistem
   const handleSavePpmTargets = async (year: string, newTargets: PpmTargetMap) => {
     await savePpmTargetsToFirebase(year, newTargets, currentUser?.username || 'ADMIN');
+    setAllPpmTargetsByYear(prev => {
+      const next = new Map(prev);
+      next.set(year, newTargets);
+      return next;
+    });
     setCurrentPpmTargets(newTargets);
     setCurrentPpmYear(year);
     if (!availablePpmYears.includes(year)) {
@@ -421,6 +433,44 @@ export default function App() {
     setData(synced);
     saveLocalEntriesToStorage(synced, year);
     setNotification(`Target PPM Tahun ${year} berhasil disimpan dan diintegrasikan ke seluruh Dashboard, Tabel, dan Entri.`);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  // Handler kosongkan (hapus menjadi 0) seluruh data PPM dalam satu tahun oleh Admin
+  const handleClearPpmTargetsForYear = async (year: string) => {
+    const emptyTargets = await clearPpmTargetsForYearInFirebase(year, currentUser?.username || 'ADMIN');
+    setAllPpmTargetsByYear(prev => {
+      const next = new Map(prev);
+      next.set(year, emptyTargets);
+      return next;
+    });
+    setCurrentPpmTargets(emptyTargets);
+    setCurrentPpmYear(year);
+    setActivePpmTargets(emptyTargets, year);
+
+    const synced = syncDataWithOfficialPpm(data, emptyTargets, year);
+    setData(synced);
+    saveLocalEntriesToStorage(synced, year);
+    setNotification(`Seluruh data target PPM Tahun ${year} berhasil dihapus (dikosongkan menjadi 0) secara real-time.`);
+    setTimeout(() => setNotification(null), 4000);
+  };
+
+  // Handler hapus permanen dokumen target PPM tahun tertentu (tahun non-default) oleh Admin
+  const handleDeletePpmYear = async (year: string) => {
+    await deletePpmTargetsYearFromFirebase(year, currentUser?.username || 'ADMIN');
+    setAllPpmTargetsByYear(prev => {
+      const next = new Map(prev);
+      next.delete(year);
+      return next;
+    });
+    setAvailablePpmYears(prev => {
+      const remaining = prev.filter(y => y !== year);
+      return remaining.length > 0 ? remaining : ['2026'];
+    });
+    if (currentPpmYear === year) {
+      handleSwitchYear('2026');
+    }
+    setNotification(`Data target PPM Tahun ${year} berhasil dihapus permanen dari Firebase.`);
     setTimeout(() => setNotification(null), 4000);
   };
 
@@ -464,7 +514,7 @@ export default function App() {
   // Kosongkan semua data yang sudah dientri untuk tahun aktif
   const confirmEmptyAllEnteredData = () => {
     setData(prevData => {
-      const emptied = emptyEnteredAchievements(prevData);
+      const emptied = emptyEnteredAchievements(prevData, currentPpmTargets, currentPpmYear);
       saveLocalEntriesToStorage(emptied, currentPpmYear);
       return emptied;
     });
@@ -1142,7 +1192,7 @@ export default function App() {
                         r[7]?.toString().toUpperCase().trim() === item.groupKey &&
                         r[8]?.toString().trim() === selectedMonth
                       );
-                      const officialTargetPpm = getOfficialPpm('JUMLAH', item.groupKey);
+                      const officialTargetPpm = getOfficialPpm('JUMLAH', item.groupKey, currentPpmTargets);
                       const mPpm = officialTargetPpm > 0 ? officialTargetPpm : rows.reduce((s, r) => s + (parseFloat(String(r[1])) || 0), 0);
                       const mCapaian = rows.reduce((s, r) => s + (parseFloat(String(r[4])) || 0), 0);
                       const mPerc = mPpm > 0 ? (mCapaian / mPpm) * 100 : 0;
@@ -1236,6 +1286,8 @@ export default function App() {
                   currentYear={currentPpmYear}
                   availableYears={availablePpmYears}
                   onSaveTargets={handleSavePpmTargets}
+                  onClearTargets={handleClearPpmTargetsForYear}
+                  onDeleteYearTargets={handleDeletePpmYear}
                   onYearChange={handleSwitchYear}
                   isAdmin={currentUser?.role === 'admin'}
                   onOpenEntrySidebar={handleOpenEntrySidebar}

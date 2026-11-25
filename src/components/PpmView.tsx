@@ -7,7 +7,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Target, Search, X, Edit3, 
   Layers, ShieldCheck, Info, Calendar, Plus, 
-  Save, RotateCcw, CheckCircle2, Sliders, AlertCircle, Copy, Check
+  Save, RotateCcw, CheckCircle2, Sliders, AlertCircle, Copy, Check, Trash2
 } from 'lucide-react';
 import { 
   KECAMATAN_LIST, 
@@ -20,7 +20,8 @@ import {
   calculatePpmTargetsList, 
   calculateKabupatenPpmTotal,
   getActivePpmTargets,
-  getActivePpmYear
+  getActivePpmYear,
+  createEmptyPpmTargets
 } from '../data/ppmData';
 
 interface PpmViewProps {
@@ -29,6 +30,8 @@ interface PpmViewProps {
   currentYear?: string;
   availableYears?: string[];
   onSaveTargets?: (year: string, targets: PpmTargetMap) => Promise<void>;
+  onClearTargets?: (year: string) => Promise<void>;
+  onDeleteYearTargets?: (year: string) => Promise<void>;
   onYearChange?: (year: string) => void;
   isAdmin?: boolean;
 }
@@ -39,6 +42,8 @@ export const PpmView: React.FC<PpmViewProps> = ({
   currentYear = '2026',
   availableYears = ['2026'],
   onSaveTargets,
+  onClearTargets,
+  onDeleteYearTargets,
   onYearChange,
   isAdmin = true,
 }) => {
@@ -62,6 +67,8 @@ export const PpmView: React.FC<PpmViewProps> = ({
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const [showAddYearModal, setShowAddYearModal] = useState(false);
   const [newYearInput, setNewYearInput] = useState('');
+  const [showDeletePpmModal, setShowDeletePpmModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sinkronkan tempTargets setiap kali modal edit dibuka
   useEffect(() => {
@@ -143,6 +150,41 @@ export const PpmView: React.FC<PpmViewProps> = ({
     setTempTargets(JSON.parse(JSON.stringify(RAW_PPM_DATA)));
   };
 
+  // Kosongkan seluruh target sementara di modal edit menjadi 0
+  const handleClearTempTargets = () => {
+    setTempTargets(createEmptyPpmTargets());
+  };
+
+  // Hapus / kosongkan seluruh target PPM tahun aktif menjadi 0 di Firebase
+  const handleConfirmClearTargets = async () => {
+    setIsDeleting(true);
+    try {
+      if (onClearTargets) {
+        await onClearTargets(activeYear);
+      }
+      setShowDeletePpmModal(false);
+    } catch (err) {
+      console.error('Gagal menghapus data PPM tahun ini:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Hapus permanen tahun target PPM (tahun non-default) dari Firebase
+  const handleConfirmDeleteYear = async () => {
+    setIsDeleting(true);
+    try {
+      if (onDeleteYearTargets) {
+        await onDeleteYearTargets(activeYear);
+      }
+      setShowDeletePpmModal(false);
+    } catch (err) {
+      console.error('Gagal menghapus tahun PPM:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Tambah tahun pelaporan baru
   const handleCreateNewYear = () => {
     const cleaned = newYearInput.trim();
@@ -217,17 +259,29 @@ export const PpmView: React.FC<PpmViewProps> = ({
             </select>
           </div>
 
-          {/* Tombol Ubah Target PPM */}
+          {/* Tombol Ubah & Hapus Target PPM (Admin) */}
           {isAdmin && (
-            <button
-              type="button"
-              onClick={() => setIsEditModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-black transition-all shadow-lg shadow-teal-500/20 active:scale-95 cursor-pointer shrink-0"
-              title="Ubah Target PPM tahunan untuk kecamatan se-Kabupaten Bojonegoro"
-            >
-              <Sliders className="w-4 h-4 mr-1.5" />
-              <span>Ubah Target PPM</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                className="inline-flex items-center px-4 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-black transition-all shadow-lg shadow-teal-500/20 active:scale-95 cursor-pointer shrink-0"
+                title="Ubah Target PPM tahunan untuk kecamatan se-Kabupaten Bojonegoro"
+              >
+                <Sliders className="w-4 h-4 mr-1.5" />
+                <span>Ubah Target PPM</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDeletePpmModal(true)}
+                className="inline-flex items-center px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-black transition-all active:scale-95 cursor-pointer shrink-0"
+                title={`Hapus seluruh data target PPM Tahun ${activeYear}`}
+              >
+                <Trash2 className="w-4 h-4 mr-1.5" />
+                <span>Hapus Data PPM</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -600,6 +654,15 @@ export const PpmView: React.FC<PpmViewProps> = ({
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   type="button"
+                  onClick={handleClearTempTargets}
+                  className="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all cursor-pointer"
+                  title="Kosongkan seluruh angka target PPM menjadi 0 untuk tahun ini"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1 text-rose-400" />
+                  <span>Kosongkan Semua (0)</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleResetToOfficialPdf}
                   className="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700 text-xs font-semibold transition-all cursor-pointer"
                   title="Kembalikan target ke standar resmi Kabupaten Bojonegoro (PDF)"
@@ -907,7 +970,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
                   setShowAddYearModal(false);
                   setNewYearInput('');
                 }}
-                className="px-3.5 py-1.5 rounded-lg bg-slate-800 text-slate-400 text-xs font-semibold hover:text-slate-200"
+                className="px-3.5 py-1.5 rounded-lg bg-slate-800 text-slate-400 text-xs font-semibold hover:text-slate-200 cursor-pointer"
               >
                 Batal
               </button>
@@ -915,9 +978,86 @@ export const PpmView: React.FC<PpmViewProps> = ({
                 type="button"
                 onClick={handleCreateNewYear}
                 disabled={!newYearInput.match(/^[0-9]{4}$/)}
-                className="px-4 py-1.5 rounded-lg bg-teal-500 text-slate-950 text-xs font-black hover:bg-teal-400 disabled:opacity-40"
+                className="px-4 py-1.5 rounded-lg bg-teal-500 text-slate-950 text-xs font-black hover:bg-teal-400 disabled:opacity-40 cursor-pointer"
               >
                 Lanjutkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Konfirmasi Hapus Data PPM Satu Tahun (Admin) */}
+      {showDeletePpmModal && isAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-100 uppercase tracking-tight">
+                    Hapus Data PPM Tahun {activeYear}?
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Tindakan Admin &bull; Sinkron Real-Time ke Firebase
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeletePpmModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-rose-950/30 border border-rose-500/25 text-xs text-slate-300 leading-relaxed space-y-2">
+              <p>
+                Anda akan menghapus seluruh data Target PPM Kabupaten Bojonegoro (28 Kecamatan &amp; 7 Metode) untuk <strong className="text-rose-300">Tahun {activeYear}</strong>.
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Data capaian yang sudah dientri tidak akan terhapus; persentase capaian dan sisa target akan langsung menyesuaikan secara otomatis.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmClearTargets}
+                className="w-full px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black shadow-lg shadow-rose-600/20 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                <span>
+                  {isDeleting
+                    ? 'Menghapus Data PPM...'
+                    : `Kosongkan Semua Target PPM Tahun ${activeYear} (Jadi 0)`}
+                </span>
+              </button>
+
+              {activeYear !== '2026' && (
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleConfirmDeleteYear}
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                >
+                  <AlertCircle className="w-4 h-4 mr-2 text-rose-400" />
+                  <span>Hapus Permanen Tahun {activeYear} dari Daftar</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeletePpmModal(false)}
+                className="w-full px-4 py-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Batal
               </button>
             </div>
           </div>
