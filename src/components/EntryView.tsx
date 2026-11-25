@@ -32,6 +32,7 @@ interface EntryViewProps {
   currentYear?: string;
   availableYears?: string[];
   onYearChange?: (year: string) => void;
+  isMobileLandscape?: boolean;
 }
 
 interface SingleMonthRow {
@@ -59,7 +60,8 @@ export const EntryView: React.FC<EntryViewProps> = ({
   currentPpmTargets,
   currentYear = '2026',
   availableYears = ['2026', '2025'],
-  onYearChange
+  onYearChange,
+  isMobileLandscape = false
 }) => {
   // Local fallback if setters are not provided by parent
   const [localCategory, setLocalCategory] = useState(activeCategory);
@@ -173,63 +175,83 @@ export const EntryView: React.FC<EntryViewProps> = ({
   }, [singleMonthDataList, totalRow, searchQuery, onlyMyDistrict, activeLockKecamatan]);
 
   return (
-    <div className="space-y-4">
+    <div className={isMobileLandscape ? "space-y-2.5" : "space-y-4"}>
       {/* Top Banner Manajemen Entri */}
       {activeLockKecamatan ? (
-        <div className="bg-gradient-to-r from-teal-950/80 via-slate-850 to-slate-800 border border-teal-500/30 rounded-2xl p-5 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
+        <div
+          className={`bg-gradient-to-r from-teal-950/80 via-slate-850 to-slate-800 border border-teal-500/30 rounded-2xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between landscape-row ${
+            isMobileLandscape ? "p-2.5 px-3 gap-2" : "p-5 gap-4"
+          }`}
+        >
+          <div className="space-y-1">
             <div className="flex items-center space-x-2.5">
-              <div className="p-2 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30">
-                <Lock className="w-5 h-5 text-teal-400" />
-              </div>
+              {!isMobileLandscape && (
+                <div className="p-2 rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                  <Lock className="w-5 h-5 text-teal-400" />
+                </div>
+              )}
               <div>
-                <h2 className="text-base font-black text-slate-100 uppercase tracking-tight flex items-center gap-2 flex-wrap">
+                <h2 className={`${isMobileLandscape ? "text-xs" : "text-base"} font-black text-slate-100 uppercase tracking-tight flex items-center gap-2 flex-wrap`}>
                   <span>Entri Capaian Kecamatan {activeLockKecamatan}</span>
                   <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/40">
                     Hak Akses Wilayah
                   </span>
                 </h2>
-                <p className="text-xs text-slate-300 mt-0.5 max-w-2xl leading-relaxed">
-                  Anda login sebagai akun resmi <strong>Kecamatan {activeLockKecamatan}</strong>. Sesuai hak akses, Anda hanya berwenang mengentri data capaian untuk wilayah Anda. Kecamatan lainnya bersifat hanya-baca (<em>read-only</em>).
-                </p>
+                {!isMobileLandscape && (
+                  <p className="text-xs text-slate-300 mt-0.5 max-w-2xl leading-relaxed">
+                    Anda login sebagai akun resmi <strong>Kecamatan {activeLockKecamatan}</strong>. Sesuai hak akses, Anda hanya berwenang mengentri data capaian untuk wilayah Anda. Kecamatan lainnya bersifat hanya-baca (<em>read-only</em>).
+                  </p>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto shrink-0 flex-wrap">
+          <div className={`flex items-center shrink-0 flex-wrap ${isMobileLandscape ? "gap-2 w-auto" : "gap-3 w-full md:w-auto"}`}>
             <button
               type="button"
               onClick={() => onOpenEntrySidebar(activeLockKecamatan)}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-teal-500/25 flex items-center justify-center transition-all cursor-pointer"
+              className={`rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-teal-500/25 flex items-center justify-center transition-all cursor-pointer whitespace-nowrap ${
+                isMobileLandscape ? "px-3 py-1.5" : "w-full sm:w-auto px-4 py-2.5"
+              }`}
             >
-              <Edit3 className="w-4 h-4 mr-2" />
+              <Edit3 className="w-3.5 h-3.5 mr-1.5" />
               Entri Data {activeLockKecamatan}
             </button>
           </div>
         </div>
       ) : (
-        <div className="bg-gradient-to-r from-slate-800 via-slate-850 to-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
+        <div
+          className={`bg-gradient-to-r from-slate-800 via-slate-850 to-slate-800 border border-slate-700 rounded-2xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between landscape-row ${
+            isMobileLandscape ? "p-2.5 px-3 gap-2" : "p-6 gap-4"
+          }`}
+        >
+          <div className="space-y-1">
             <div className="flex items-center space-x-2.5">
-              <div className="p-2 rounded-lg bg-teal-500/20 text-teal-400 border border-teal-500/30">
-                <FileSpreadsheet className="w-5 h-5" />
-              </div>
-              <h2 className="text-base font-black text-slate-100 uppercase tracking-tight">
+              {!isMobileLandscape && (
+                <div className="p-2 rounded-lg bg-teal-500/20 text-teal-400 border border-teal-500/30">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+              )}
+              <h2 className={`${isMobileLandscape ? "text-xs" : "text-base"} font-black text-slate-100 uppercase tracking-tight`}>
                 Manajemen Entri Data Metode Kontrasepsi
               </h2>
             </div>
-            <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-              Pilih kecamatan untuk menginput capaian metode <strong className="text-slate-200">MOW, MOP, IUD, IMPLAN, SUNTIK, PIL, dan KONDOM</strong>. Perhitungan MKJP, NON MKJP, dan Total Semua Metode akan dihitung otomatis secara realtime.
-            </p>
+            {!isMobileLandscape && (
+              <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
+                Pilih kecamatan untuk menginput capaian metode <strong className="text-slate-200">MOW, MOP, IUD, IMPLAN, SUNTIK, PIL, dan KONDOM</strong>. Perhitungan MKJP, NON MKJP, dan Total Semua Metode akan dihitung otomatis secara realtime.
+              </p>
+            )}
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto shrink-0 flex-wrap">
+          <div className={`flex items-center shrink-0 flex-wrap ${isMobileLandscape ? "gap-2 w-auto" : "gap-3 w-full md:w-auto"}`}>
             <button
               type="button"
               onClick={() => onOpenEntrySidebar()}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-xs shadow-lg shadow-teal-500/20 flex items-center justify-center transition-all cursor-pointer"
+              className={`rounded-xl bg-teal-500 hover:bg-teal-600 text-white font-extrabold text-xs shadow-lg shadow-teal-500/20 flex items-center justify-center transition-all cursor-pointer whitespace-nowrap ${
+                isMobileLandscape ? "px-3 py-1.5" : "w-full sm:w-auto px-4 py-2.5"
+              }`}
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
               Buka Pop-up Entri Data
             </button>
           </div>
@@ -239,14 +261,20 @@ export const EntryView: React.FC<EntryViewProps> = ({
       {/* Kartu Tabel Utama Entri Data (Tampilan Seperti Awal) */}
       <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
         {/* Header Tabel dengan Kontrol Filter */}
-        <div className="p-4 sm:px-6 bg-slate-850 border-b border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-teal-500/15 text-teal-400 border border-teal-500/30 shadow-inner">
-              <FileSpreadsheet className="w-5 h-5" />
-            </div>
+        <div
+          className={`bg-slate-850 border-b border-slate-700 flex flex-col md:flex-row md:items-center justify-between landscape-row ${
+            isMobileLandscape ? "p-2.5 px-3 gap-2" : "p-4 sm:px-6 gap-4"
+          }`}
+        >
+          <div className="flex items-center space-x-2.5">
+            {!isMobileLandscape && (
+              <div className="p-2.5 rounded-xl bg-teal-500/15 text-teal-400 border border-teal-500/30 shadow-inner">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+            )}
             <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-sm sm:text-base font-black text-slate-100 uppercase tracking-tight">
+              <div className="flex items-center space-x-2 flex-wrap gap-1">
+                <h2 className={`${isMobileLandscape ? "text-xs" : "text-sm sm:text-base"} font-black text-slate-100 uppercase tracking-tight`}>
                   Tabel Entri Capaian Pelayanan KB
                 </h2>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/30">
@@ -256,13 +284,15 @@ export const EntryView: React.FC<EntryViewProps> = ({
                   Tahun {currentYear || '2026'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Kabupaten Bojonegoro &bull; Periode: <span className="text-teal-400 font-bold">{currentMonth} {currentYear || '2026'}</span>
-              </p>
+              {!isMobileLandscape && (
+                <p className="text-xs text-slate-400">
+                  Kabupaten Bojonegoro &bull; Periode: <span className="text-teal-400 font-bold">{currentMonth} {currentYear || '2026'}</span>
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className={`flex items-center flex-wrap ${isMobileLandscape ? "gap-1.5" : "gap-2.5"}`}>
             {/* Pilihan Metode Kontrasepsi */}
             <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300">
               <Layers className="w-3.5 h-3.5 text-teal-400 shrink-0" />
@@ -325,15 +355,21 @@ export const EntryView: React.FC<EntryViewProps> = ({
         </div>
 
         {/* SATU FILTER PENCARIAN TUNGGAL & TOGGLE WILAYAH */}
-        <div className="p-4 sm:px-6 bg-slate-900/70 border-b border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div
+          className={`bg-slate-900/70 border-b border-slate-700 flex flex-col md:flex-row md:items-center justify-between landscape-row ${
+            isMobileLandscape ? "p-2 px-3 gap-2" : "p-4 sm:px-6 gap-3"
+          }`}
+        >
           <div className="relative flex-1 max-w-lg">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
               type="text"
               placeholder="Cari kecamatan..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 focus:border-teal-500 rounded-xl py-2.5 pl-10 pr-9 text-xs font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-all shadow-inner"
+              className={`w-full bg-slate-800 border border-slate-700 focus:border-teal-500 rounded-xl pl-9 pr-9 text-xs font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-all shadow-inner ${
+                isMobileLandscape ? "py-1.5" : "py-2.5"
+              }`}
             />
             {searchQuery && (
               <button
@@ -388,43 +424,43 @@ export const EntryView: React.FC<EntryViewProps> = ({
         </div>
 
         {/* Ringkasan Metrik Singkat */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-slate-700/60 bg-slate-900/40 border-b border-slate-700 text-center">
-          <div className="p-3 sm:py-3.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total PPM Target</span>
-            <span className="text-sm sm:text-base font-black text-slate-200 mt-0.5 block">{formatNumber(totalRow.ppm)}</span>
+        <div className="grid grid-cols-2 sm:grid-cols-5 landscape-grid-5 divide-x divide-y sm:divide-y-0 divide-slate-700/60 bg-slate-900/40 border-b border-slate-700 text-center">
+          <div className={isMobileLandscape ? "p-1.5" : "p-3 sm:py-3.5"}>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total PPM Target</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-sm sm:text-base"} font-black text-slate-200 mt-0.5 block tabular-nums`}>{formatNumber(totalRow.ppm)}</span>
           </div>
-          <div className="p-3 sm:py-3.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Bulan Lalu</span>
-            <span className="text-sm sm:text-base font-black text-slate-300 mt-0.5 block">{formatNumber(totalRow.blnLalu)}</span>
+          <div className={isMobileLandscape ? "p-1.5" : "p-3 sm:py-3.5"}>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Bulan Lalu</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-sm sm:text-base"} font-black text-slate-300 mt-0.5 block tabular-nums`}>{formatNumber(totalRow.blnLalu)}</span>
           </div>
-          <div className="p-3 sm:py-3.5">
-            <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">Bulan Ini</span>
-            <span className="text-sm sm:text-base font-black text-sky-400 mt-0.5 block">{formatNumber(totalRow.blnIni)}</span>
+          <div className={isMobileLandscape ? "p-1.5" : "p-3 sm:py-3.5"}>
+            <span className="text-[9px] font-bold text-sky-400 uppercase tracking-wider block">Bulan Ini</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-sm sm:text-base"} font-black text-sky-400 mt-0.5 block tabular-nums`}>{formatNumber(totalRow.blnIni)}</span>
           </div>
-          <div className="p-3 sm:py-3.5">
-            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider block">Total Capaian</span>
-            <span className="text-sm sm:text-base font-black text-teal-400 mt-0.5 block">{formatNumber(totalRow.jumlah)}</span>
+          <div className={isMobileLandscape ? "p-1.5" : "p-3 sm:py-3.5"}>
+            <span className="text-[9px] font-bold text-teal-400 uppercase tracking-wider block">Total Capaian</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-sm sm:text-base"} font-black text-teal-400 mt-0.5 block tabular-nums`}>{formatNumber(totalRow.jumlah)}</span>
           </div>
-          <div className="p-3 sm:py-3.5 col-span-2 sm:col-span-1">
-            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">Prosentase</span>
-            <span className="text-sm sm:text-base font-black text-amber-400 mt-0.5 block">{totalRow.percentage.toFixed(2)}%</span>
+          <div className={`${isMobileLandscape ? "p-1.5" : "p-3 sm:py-3.5"} col-span-2 sm:col-span-1 landscape-span-1`}>
+            <span className="text-[9px] font-bold text-amber-400 uppercase tracking-wider block">Prosentase</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-sm sm:text-base"} font-black text-amber-400 mt-0.5 block tabular-nums`}>{totalRow.percentage.toFixed(2)}%</span>
           </div>
         </div>
 
         {/* TABEL PER BULAN DENGAN FORMAT TAMPILAN AWAL */}
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+          <table className={`w-full text-left border-collapse ${isMobileLandscape ? "min-w-[780px]" : "min-w-[900px]"}`}>
             <thead>
-              <tr className="bg-slate-900/90 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
-                <th className="px-4 py-3.5 text-center w-12">No</th>
-                <th className="px-4 py-3.5">Kecamatan</th>
-                <th className="px-4 py-3.5 text-center">PPM Target</th>
-                <th className="px-4 py-3.5 text-center">Bln Lalu</th>
-                <th className="px-4 py-3.5 text-center">Bln Ini</th>
-                <th className="px-4 py-3.5 text-center">Jumlah Capaian</th>
-                <th className="px-4 py-3.5 w-[150px]">Prosentase</th>
-                <th className="px-4 py-3.5 text-center">Sisa Target</th>
-                <th className="px-4 py-3.5 text-center w-28">Aksi</th>
+              <tr className="bg-slate-900/95 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
+                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center w-10 sticky left-0 bg-slate-900 z-10`}>No</th>
+                <th className={`${isMobileLandscape ? "px-3 py-2.5 min-w-[130px]" : "px-4 py-3.5 min-w-[150px]"} sticky left-10 bg-slate-900 z-10`}>Kecamatan</th>
+                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>PPM Target</th>
+                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Bln Lalu</th>
+                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Bln Ini</th>
+                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Jumlah Capaian</th>
+                <th className={`${isMobileLandscape ? "px-2.5 py-2.5 w-[125px]" : "px-4 py-3.5 w-[150px]"}`}>Prosentase</th>
+                <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Sisa Target</th>
+                <th className={`${isMobileLandscape ? "px-2.5 py-2.5 w-24" : "px-4 py-3.5 w-28"} text-center`}>Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
@@ -435,6 +471,7 @@ export const EntryView: React.FC<EntryViewProps> = ({
                   row.kecamatan.toUpperCase().trim() === activeLockKecamatan.toUpperCase().trim()
                 );
                 const isLockedRow = isKecamatanUser && !isUserDistrict && !isTotalRow;
+                const cellPad = isMobileLandscape ? "px-2.5 py-2" : "px-4 py-3";
 
                 return (
                   <tr 
@@ -447,11 +484,15 @@ export const EntryView: React.FC<EntryViewProps> = ({
                         : 'hover:bg-slate-750/50'
                     }`}
                   >
-                    <td className="px-4 py-3 text-center text-xs font-medium text-slate-500">
+                    <td className={`${cellPad} text-center text-xs font-medium sticky left-0 z-10 ${
+                      isTotalRow ? 'bg-slate-850 text-teal-400 font-bold' : 'bg-slate-800 text-slate-500'
+                    }`}>
                       {isTotalRow ? '-' : idx + 1}
                     </td>
 
-                    <td className="px-4 py-3 text-xs font-bold text-slate-200">
+                    <td className={`${cellPad} text-xs font-bold sticky left-10 z-10 ${
+                      isTotalRow ? 'bg-slate-850 text-teal-300 uppercase' : 'bg-slate-800 text-slate-200'
+                    }`}>
                       <div className="flex items-center space-x-2">
                         <span>{row.kecamatan}</span>
                         {isUserDistrict && (
@@ -462,25 +503,25 @@ export const EntryView: React.FC<EntryViewProps> = ({
                       </div>
                     </td>
 
-                    <td className="px-4 py-3 text-center text-xs font-semibold text-slate-300">
+                    <td className={`${cellPad} text-center text-xs font-semibold text-slate-300 tabular-nums`}>
                       {formatNumber(row.ppm)}
                     </td>
 
-                    <td className="px-4 py-3 text-center text-xs text-slate-400">
+                    <td className={`${cellPad} text-center text-xs text-slate-400 tabular-nums`}>
                       {formatNumber(row.blnLalu)}
                     </td>
 
-                    <td className="px-4 py-3 text-center text-xs font-semibold text-sky-400">
+                    <td className={`${cellPad} text-center text-xs font-semibold text-sky-400 tabular-nums`}>
                       {formatNumber(row.blnIni)}
                     </td>
 
-                    <td className="px-4 py-3 text-center text-xs font-black text-teal-400">
+                    <td className={`${cellPad} text-center text-xs font-black text-teal-400 tabular-nums`}>
                       {formatNumber(row.jumlah)}
                     </td>
 
-                    <td className="px-4 py-3">
+                    <td className={cellPad}>
                       <div className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between text-[10px] font-black text-slate-300">
+                        <div className="flex items-center justify-between text-[10px] font-black text-slate-300 tabular-nums">
                           <span>{row.percentage.toFixed(2)}%</span>
                           {row.percentage >= 100 && (
                             <span className="text-[9px] text-emerald-400 font-bold">LUNAS</span>
@@ -501,13 +542,13 @@ export const EntryView: React.FC<EntryViewProps> = ({
                       </div>
                     </td>
 
-                    <td className="px-4 py-3 text-center text-xs font-bold">
+                    <td className={`${cellPad} text-center text-xs font-bold tabular-nums`}>
                       <span className={row.sisa <= 0 ? 'text-emerald-400' : 'text-rose-400'}>
                         {formatNumber(row.sisa)}
                       </span>
                     </td>
 
-                    <td className="px-4 py-3 text-center">
+                    <td className={`${cellPad} text-center`}>
                       {!isTotalRow && (
                         isLockedRow ? (
                           <div 

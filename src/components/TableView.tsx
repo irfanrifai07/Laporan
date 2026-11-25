@@ -30,6 +30,7 @@ interface TableViewProps {
   currentYear?: string;
   availableYears?: string[];
   onYearChange?: (year: string) => void;
+  isMobileLandscape?: boolean;
 }
 
 interface YearlyRow {
@@ -69,6 +70,7 @@ export const TableView: React.FC<TableViewProps> = ({
   currentYear = '2026',
   availableYears = ['2026', '2025'],
   onYearChange,
+  isMobileLandscape = false,
 }) => {
   // Mode tampilan: default 'month' sesuai tampilan tabel awal
   const [tableMode] = useState<'month' | 'year'>('month');
@@ -309,18 +311,24 @@ export const TableView: React.FC<TableViewProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className={isMobileLandscape ? "space-y-2.5" : "space-y-4"}>
       {/* Kartu Tabel Utama */}
       <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
         {/* Header Tabel dengan Kontrol Periode & Filter */}
-        <div className="p-4 sm:px-6 bg-slate-850 border-b border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-teal-500/15 text-teal-400 border border-teal-500/30 shadow-inner">
-              <TableIcon className="w-5 h-5" />
-            </div>
+        <div
+          className={`bg-slate-850 border-b border-slate-700 flex flex-col md:flex-row md:items-center justify-between landscape-row ${
+            isMobileLandscape ? "p-2.5 px-3 gap-2" : "p-4 sm:px-6 gap-4"
+          }`}
+        >
+          <div className="flex items-center space-x-2.5">
+            {!isMobileLandscape && (
+              <div className="p-2.5 rounded-xl bg-teal-500/15 text-teal-400 border border-teal-500/30 shadow-inner">
+                <TableIcon className="w-5 h-5" />
+              </div>
+            )}
             <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-sm sm:text-base font-black text-slate-100 uppercase tracking-tight">
+              <div className="flex items-center space-x-2 flex-wrap gap-1">
+                <h2 className={`${isMobileLandscape ? "text-xs" : "text-sm sm:text-base"} font-black text-slate-100 uppercase tracking-tight`}>
                   Tabel Data Capaian Pelayanan KB
                 </h2>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/30">
@@ -330,13 +338,15 @@ export const TableView: React.FC<TableViewProps> = ({
                   Tahun {currentYear || '2026'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
-                Kabupaten Bojonegoro &bull; Periode: <span className="text-teal-400 font-bold">{selectedMonth} {currentYear || '2026'}</span>
-              </p>
+              {!isMobileLandscape && (
+                <p className="text-xs text-slate-400">
+                  Kabupaten Bojonegoro &bull; Periode: <span className="text-teal-400 font-bold">{selectedMonth} {currentYear || '2026'}</span>
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className={`flex items-center flex-wrap ${isMobileLandscape ? "gap-1.5" : "gap-2.5"}`}>
             {/* Pilihan Metode Kontrasepsi */}
             <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-300">
               <Layers className="w-3.5 h-3.5 text-teal-400 shrink-0" />
@@ -411,15 +421,21 @@ export const TableView: React.FC<TableViewProps> = ({
         </div>
 
         {/* SATU FILTER PENCARIAN TUNGGAL */}
-        <div className="p-4 sm:px-6 bg-slate-900/70 border-b border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div
+          className={`bg-slate-900/70 border-b border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between landscape-row ${
+            isMobileLandscape ? "p-2 px-3 gap-2" : "p-4 sm:px-6 gap-3"
+          }`}
+        >
           <div className="relative flex-1 max-w-lg">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
               type="text"
               placeholder="Cari data kecamatan atau metode kontrasepsi..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 focus:border-teal-500 rounded-xl py-2.5 pl-10 pr-9 text-xs font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-all shadow-inner"
+              className={`w-full bg-slate-800 border border-slate-700 focus:border-teal-500 rounded-xl pl-9 pr-9 text-xs font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-all shadow-inner ${
+                isMobileLandscape ? "py-1.5" : "py-2.5"
+              }`}
             />
             {searchQuery && (
               <button
@@ -479,26 +495,30 @@ export const TableView: React.FC<TableViewProps> = ({
             </div>
           </div>
         ) : (
-          <div className="bg-slate-850 px-4 sm:px-6 py-3 border-b border-slate-700 grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
-            <div className="bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+          <div
+            className={`bg-slate-850 border-b border-slate-700 grid grid-cols-2 sm:grid-cols-5 landscape-grid-5 text-center ${
+              isMobileLandscape ? "px-3 py-1.5 gap-1.5" : "px-4 sm:px-6 py-3 gap-3"
+            }`}
+          >
+            <div className={`bg-slate-900/50 rounded-lg border border-slate-800 ${isMobileLandscape ? "p-1.5" : "p-2"}`}>
               <span className="text-[9px] font-bold text-slate-500 uppercase block">Total PPM Target</span>
-              <span className="text-xs sm:text-sm font-black text-slate-200">{formatNumber(singleMonthSummary.ppm)}</span>
+              <span className="text-xs sm:text-sm font-black text-slate-200 tabular-nums">{formatNumber(singleMonthSummary.ppm)}</span>
             </div>
-            <div className="bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+            <div className={`bg-slate-900/50 rounded-lg border border-slate-800 ${isMobileLandscape ? "p-1.5" : "p-2"}`}>
               <span className="text-[9px] font-bold text-slate-500 uppercase block">Bulan Lalu</span>
-              <span className="text-xs sm:text-sm font-bold text-slate-300">{formatNumber(singleMonthSummary.blnLalu)}</span>
+              <span className="text-xs sm:text-sm font-bold text-slate-300 tabular-nums">{formatNumber(singleMonthSummary.blnLalu)}</span>
             </div>
-            <div className="bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+            <div className={`bg-slate-900/50 rounded-lg border border-slate-800 ${isMobileLandscape ? "p-1.5" : "p-2"}`}>
               <span className="text-[9px] font-bold text-slate-500 uppercase block">Bulan Ini</span>
-              <span className="text-xs sm:text-sm font-bold text-sky-400">{formatNumber(singleMonthSummary.blnIni)}</span>
+              <span className="text-xs sm:text-sm font-bold text-sky-400 tabular-nums">{formatNumber(singleMonthSummary.blnIni)}</span>
             </div>
-            <div className="bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+            <div className={`bg-slate-900/50 rounded-lg border border-slate-800 ${isMobileLandscape ? "p-1.5" : "p-2"}`}>
               <span className="text-[9px] font-bold text-teal-400 uppercase block">Total Capaian</span>
-              <span className="text-xs sm:text-sm font-black text-teal-400">{formatNumber(singleMonthSummary.jumlah)}</span>
+              <span className="text-xs sm:text-sm font-black text-teal-400 tabular-nums">{formatNumber(singleMonthSummary.jumlah)}</span>
             </div>
-            <div className="col-span-2 sm:col-span-1 bg-slate-900/50 p-2 rounded-lg border border-slate-800 flex flex-col justify-center">
+            <div className={`col-span-2 sm:col-span-1 landscape-span-1 bg-slate-900/50 rounded-lg border border-slate-800 flex flex-col justify-center ${isMobileLandscape ? "p-1.5" : "p-2"}`}>
               <span className="text-[9px] font-bold text-slate-400 uppercase block">Prosentase</span>
-              <span className={`text-xs sm:text-sm font-black ${
+              <span className={`text-xs sm:text-sm font-black tabular-nums ${
                 singleMonthSummary.percentage >= 80 ? 'text-emerald-400' : singleMonthSummary.percentage >= 50 ? 'text-amber-400' : 'text-rose-400'
               }`}>
                 {singleMonthSummary.percentage.toFixed(2)}%
@@ -642,22 +662,23 @@ export const TableView: React.FC<TableViewProps> = ({
         ) : (
           /* TABEL PER BULAN (Detail Bulan Lalu & Bulan Ini) */
           <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse min-w-[850px]">
+            <table className={`w-full text-left border-collapse ${isMobileLandscape ? "min-w-[720px]" : "min-w-[850px]"}`}>
               <thead>
-                <tr className="bg-slate-900/90 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
-                  <th className="px-4 py-3.5 text-center w-12">No</th>
-                  <th className="px-4 py-3.5">Kecamatan</th>
-                  <th className="px-4 py-3.5 text-center">PPM Target</th>
-                  <th className="px-4 py-3.5 text-center">Bln Lalu</th>
-                  <th className="px-4 py-3.5 text-center">Bln Ini</th>
-                  <th className="px-4 py-3.5 text-center">Jumlah Capaian</th>
-                  <th className="px-4 py-3.5 w-[150px]">Prosentase</th>
-                  <th className="px-4 py-3.5 text-center">Sisa Target</th>
+                <tr className="bg-slate-900/95 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
+                  <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center w-10 sticky left-0 bg-slate-900 z-10`}>No</th>
+                  <th className={`${isMobileLandscape ? "px-3 py-2.5 min-w-[130px]" : "px-4 py-3.5 min-w-[150px]"} sticky left-10 bg-slate-900 z-10`}>Kecamatan</th>
+                  <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>PPM Target</th>
+                  <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Bln Lalu</th>
+                  <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Bln Ini</th>
+                  <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Jumlah Capaian</th>
+                  <th className={`${isMobileLandscape ? "px-2.5 py-2.5 w-[125px]" : "px-4 py-3.5 w-[150px]"}`}>Prosentase</th>
+                  <th className={`${isMobileLandscape ? "px-2.5 py-2.5" : "px-4 py-3.5"} text-center`}>Sisa Target</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/50">
                 {displayedSingleMonthRows.map((row, idx) => {
                   const isTotalRow = row.isJumlah;
+                  const cellPad = isMobileLandscape ? "px-2.5 py-2" : "px-4 py-3";
 
                   return (
                     <tr 
@@ -668,33 +689,37 @@ export const TableView: React.FC<TableViewProps> = ({
                           : 'hover:bg-slate-750/50'
                       }`}
                     >
-                      <td className="px-4 py-3 text-center text-xs font-medium text-slate-500">
+                      <td className={`${cellPad} text-center text-xs font-medium sticky left-0 z-10 ${
+                        isTotalRow ? 'bg-slate-850 text-teal-400 font-bold' : 'bg-slate-800 text-slate-500'
+                      }`}>
                         {isTotalRow ? '-' : idx + 1}
                       </td>
 
-                      <td className="px-4 py-3 text-xs font-bold text-slate-200">
+                      <td className={`${cellPad} text-xs font-bold sticky left-10 z-10 ${
+                        isTotalRow ? 'bg-slate-850 text-teal-300 uppercase' : 'bg-slate-800 text-slate-200'
+                      }`}>
                         {row.kecamatan}
                       </td>
 
-                      <td className="px-4 py-3 text-center text-xs font-semibold text-slate-300">
+                      <td className={`${cellPad} text-center text-xs font-semibold text-slate-300 tabular-nums`}>
                         {formatNumber(row.ppm)}
                       </td>
 
-                      <td className="px-4 py-3 text-center text-xs text-slate-400">
+                      <td className={`${cellPad} text-center text-xs text-slate-400 tabular-nums`}>
                         {formatNumber(row.blnLalu)}
                       </td>
 
-                      <td className="px-4 py-3 text-center text-xs font-semibold text-sky-400">
+                      <td className={`${cellPad} text-center text-xs font-semibold text-sky-400 tabular-nums`}>
                         {formatNumber(row.blnIni)}
                       </td>
 
-                      <td className="px-4 py-3 text-center text-xs font-black text-teal-400">
+                      <td className={`${cellPad} text-center text-xs font-black text-teal-400 tabular-nums`}>
                         {formatNumber(row.jumlah)}
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td className={cellPad}>
                         <div className="flex flex-col gap-1">
-                          <div className="flex items-center justify-between text-[10px] font-black text-slate-300">
+                          <div className="flex items-center justify-between text-[10px] font-black text-slate-300 tabular-nums">
                             <span>{row.percentage.toFixed(2)}%</span>
                             {row.percentage >= 100 && (
                               <span className="text-[9px] text-emerald-400 font-bold">LUNAS</span>
@@ -715,7 +740,7 @@ export const TableView: React.FC<TableViewProps> = ({
                         </div>
                       </td>
 
-                      <td className={`px-4 py-3 text-center text-xs font-bold ${
+                      <td className={`${cellPad} text-center text-xs font-bold tabular-nums ${
                         row.sisa <= 0 ? 'text-emerald-400' : 'text-rose-400'
                       }`}>
                         {formatNumber(row.sisa)}

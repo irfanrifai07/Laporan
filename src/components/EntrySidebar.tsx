@@ -45,6 +45,7 @@ interface EntrySidebarProps {
   lockedKecamatan?: string;
   currentPpmTargets?: PpmTargetMap;
   currentYear?: string;
+  isMobileLandscape?: boolean;
 }
 
 export const EntrySidebar: React.FC<EntrySidebarProps> = ({
@@ -56,7 +57,8 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   defaultKecamatan = 'NGRAHO',
   lockedKecamatan,
   currentPpmTargets,
-  currentYear = '2026'
+  currentYear = '2026',
+  isMobileLandscape = false
 }) => {
   const [selectedKecamatan, setSelectedKecamatan] = useState(lockedKecamatan || defaultKecamatan);
   const activeKecamatan = lockedKecamatan || selectedKecamatan;
@@ -241,7 +243,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-hidden">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center overflow-hidden ${isMobileLandscape ? "p-2" : "p-3 sm:p-5"}`}>
           {/* Backdrop for click-away */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -257,10 +259,10 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-            className="relative z-50 w-full max-w-4xl max-h-[90vh] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100"
+            className="relative z-50 w-full max-w-4xl max-h-[94%] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100"
           >
             {/* Header */}
-            <div className="p-4 sm:px-6 bg-slate-800 border-b border-slate-700 flex items-center justify-between shrink-0">
+            <div className={`bg-slate-800 border-b border-slate-700 flex items-center justify-between shrink-0 ${isMobileLandscape ? "p-2.5 px-4" : "p-4 sm:px-6"}`}>
               <div className="flex items-center space-x-3">
                 <div className="w-9 h-9 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30">
                   <FileSpreadsheet className="w-5 h-5" />
@@ -306,7 +308,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
             )}
 
             {/* Body Content */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scrollbar">
+            <div className={`flex-1 overflow-y-auto custom-scrollbar ${isMobileLandscape ? "p-3 space-y-3" : "p-4 sm:p-6 space-y-5"}`}>
               {/* Kecamatan & Periode Selection */}
               <div className="bg-slate-800/90 border border-slate-700 rounded-xl p-4 shadow-lg space-y-3">
                 <div className="flex items-center justify-between">
@@ -591,7 +593,7 @@ export const EntrySidebar: React.FC<EntrySidebarProps> = ({
             </div>
 
             {/* Bottom Footer Action Bar */}
-            <div className="p-4 sm:px-6 bg-slate-800 border-t border-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
+            <div className={`bg-slate-800 border-t border-slate-700 flex flex-col sm:flex-row items-stretch sm:items-center justify-between shrink-0 landscape-row ${isMobileLandscape ? "p-2.5 px-4 gap-2" : "p-4 sm:px-6 gap-3"}`}>
               <div className="flex items-center space-x-2 text-xs">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                 <div>

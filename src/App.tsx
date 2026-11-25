@@ -12,7 +12,8 @@ import {
   LayoutDashboard, Table as TableIcon, Search, Menu, X, 
   Layers, Globe,
   Activity, ArrowDownRight, ArrowUpRight, RefreshCw, AlertCircle,
-  FileSpreadsheet, CheckCircle2, RotateCcw, Target, Download, Calendar, LogOut, KeyRound
+  FileSpreadsheet, CheckCircle2, RotateCcw, Target, Download, Calendar, LogOut, KeyRound,
+  Smartphone, RotateCw, BarChart3, EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -173,9 +174,25 @@ export default function App() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('Semua Metode');
   const [selectedMonth, setSelectedMonth] = useState('Februari');
-  const [isMobile, setIsMobile] = useState(() => {
-    return typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
-  });
+  const getViewportInfo = () => {
+    if (typeof window === 'undefined') {
+      return { mobile: false, portrait: false };
+    }
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const minDim = Math.min(w, h);
+    const maxDim = Math.max(w, h);
+    const mobile = w < 1024 || (minDim < 768 && maxDim <= 1024);
+    return {
+      mobile,
+      portrait: h > w
+    };
+  };
+
+  const [isMobile, setIsMobile] = useState(() => getViewportInfo().mobile);
+  const [isPortrait, setIsPortrait] = useState(() => getViewportInfo().portrait);
+  const [landscapeOverride, setLandscapeOverride] = useState<'auto' | 'portrait'>('auto');
+  const [showMobileBarChart, setShowMobileBarChart] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 1024;
@@ -185,11 +202,12 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
 
-  // Monitor window resize to maintain optimal responsive layout on computer and mobile
+  // Monitor window resize & orientation change to maintain optimal responsive layout on computer and mobile
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 1024;
+      const { mobile, portrait } = getViewportInfo();
       setIsMobile(mobile);
+      setIsPortrait(portrait);
       if (mobile) {
         setSidebarOpen(false);
       } else {
@@ -197,7 +215,14 @@ export default function App() {
       }
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    const orientation = typeof window !== 'undefined' ? window.screen?.orientation : undefined;
+    orientation?.addEventListener?.('change', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+      orientation?.removeEventListener?.('change', handleResize);
+    };
   }, []);
 
   // Entry Sidebar State
@@ -241,11 +266,30 @@ export default function App() {
     currentUser && (currentUser.role !== 'admin' || currentUser.kecamatan)
   );
 
+  // Menentukan apakah tampilan aktif berisi tabel data (Data Tabel, Entri Data, Data PPM)
+  const isTableView =
+    currentView === AppView.TABLE ||
+    currentView === AppView.ENTRY ||
+    (currentView === AppView.PPM && !isKecamatanUser);
+
+  // Di mobile, tampilan membutuhkan landscape saat membuka tabel ATAU saat Grafik Capaian Per Kecamatan ditampilkan
+  const isDashboardChartLandscape = currentView === AppView.DASHBOARD && showMobileBarChart;
+  const requiresLandscape = isTableView || isDashboardChartLandscape;
+
+  // Saat mobile & membuka tabel atau menampilkan grafik kecamatan, otomatis aktifkan mode landscape
+  const isCssAutoLandscape =
+    Boolean(currentUser) && isMobile && isPortrait && requiresLandscape && landscapeOverride === 'auto';
+  const isMobileLandscape =
+    Boolean(currentUser) && isMobile && requiresLandscape && (isCssAutoLandscape || !isPortrait);
+
   const handleNavigateView = (view: AppView) => {
     // Sembunyikan dan cegah akses ke Data PPM untuk user kecamatan
     if (view === AppView.PPM && isKecamatanUser) {
       setCurrentView(AppView.DASHBOARD);
       return;
+    }
+    if (view === AppView.TABLE || view === AppView.ENTRY || view === AppView.PPM) {
+      setLandscapeOverride('auto');
     }
     setCurrentView(view);
     setIsEntrySidebarOpen(false);
@@ -253,6 +297,38 @@ export default function App() {
       setSidebarOpen(false);
     }
   };
+
+  // Upayakan kunci orientasi layar landscape saat di tampilan tabel atau grafik mobile (jika didukung browser)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const orientation = window.screen?.orientation as (ScreenOrientation & {
+      lock?: (orientation: string) => Promise<void>;
+      unlock?: () => void;
+    }) | undefined;
+
+    if (currentUser && isMobile && requiresLandscape && landscapeOverride === 'auto') {
+      orientation?.lock?.('landscape')?.catch(() => {});
+    } else {
+      try {
+        orientation?.unlock?.();
+      } catch {
+        // ignore
+      }
+    }
+  }, [currentUser, isMobile, requiresLandscape, landscapeOverride]);
+
+  // Kunci scroll body saat rotasi auto-landscape aktif agar tidak memantul di HP
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (isCssAutoLandscape) {
+      document.body.classList.add('mobile-landscape-lock');
+    } else {
+      document.body.classList.remove('mobile-landscape-lock');
+    }
+    return () => {
+      document.body.classList.remove('mobile-landscape-lock');
+    };
+  }, [isCssAutoLandscape]);
 
   useEffect(() => {
     if (currentUser?.kecamatan) {
@@ -723,7 +799,13 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-900 font-sans text-slate-100 overflow-hidden">
+    <div
+      className={cn(
+        "flex bg-slate-900 font-sans text-slate-100 overflow-hidden",
+        isCssAutoLandscape ? "mobile-auto-landscape" : "h-screen",
+        isMobileLandscape && "mobile-landscape-active"
+      )}
+    >
       {/* Mobile Drawer Backdrop */}
       <AnimatePresence>
         {isMobile && sidebarOpen && (
@@ -900,36 +982,136 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative min-w-0 w-full">
-        <header className="h-16 bg-slate-800 border-b border-slate-700 flex items-center justify-between px-3 sm:px-6 shrink-0 z-10 gap-2">
-          <div className="flex items-center space-x-2.5 sm:space-x-4 min-w-0">
+        <header
+          className={cn(
+            "bg-slate-800 border-b border-slate-700 flex items-center justify-between shrink-0 z-10 gap-2",
+            isMobileLandscape ? "h-11 px-3" : "h-16 px-3 sm:px-6"
+          )}
+        >
+          <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-1.5 sm:p-2 hover:bg-slate-700 rounded-lg text-slate-400 cursor-pointer shrink-0"
               title="Menu Navigasi"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className={cn(isMobileLandscape ? "w-4 h-4" : "w-5 h-5")} />
             </button>
             <div className="flex flex-col min-w-0">
-              <h1 className="text-xs sm:text-sm font-bold text-teal-400 uppercase tracking-tighter truncate">
+              <h1
+                className={cn(
+                  "font-bold text-teal-400 uppercase tracking-tighter truncate",
+                  isMobileLandscape ? "text-xs" : "text-xs sm:text-sm"
+                )}
+              >
                 {currentView === AppView.DASHBOARD 
-                  ? 'Dashboard Visual Capaian' 
+                  ? (isMobileLandscape ? 'Grafik Capaian' : 'Dashboard Visual Capaian')
                   : currentView === AppView.TABLE 
-                  ? 'Tabel Capaian Layanan' 
+                  ? (isMobileLandscape ? 'Tabel Capaian' : 'Tabel Capaian Layanan')
                   : currentView === AppView.PPM
-                  ? 'Data Target PPM Resmi Bojonegoro'
-                  : 'Manajemen Entri Data Metode KB'}
+                  ? (isMobileLandscape ? 'Target PPM' : 'Data Target PPM Resmi Bojonegoro')
+                  : (isMobileLandscape ? 'Entri Data KB' : 'Manajemen Entri Data Metode KB')}
               </h1>
-              <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate">
-                {currentView === AppView.PPM
-                  ? 'Target Resmi 28 Kecamatan'
-                  : `${activeCategory} \u2022 ${selectedMonth}`}
-              </p>
+              {!isMobileLandscape && (
+                <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate">
+                  {currentView === AppView.PPM
+                    ? 'Target Resmi 28 Kecamatan'
+                    : `${activeCategory} \u2022 ${selectedMonth}`}
+                </p>
+              )}
             </div>
           </div>
 
+          {/* Navigasi Cepat Inline saat Mode Landscape Mobile (menggantikan bottom nav agar tabel/grafik lega) */}
+          {isMobileLandscape && (
+            <nav className="flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 rounded-lg p-0.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleNavigateView(AppView.DASHBOARD)}
+                className={cn(
+                  "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                  currentView === AppView.DASHBOARD
+                    ? "bg-teal-500 text-slate-950 font-black"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800"
+                )}
+              >
+                Dashboard
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigateView(AppView.TABLE)}
+                className={cn(
+                  "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                  currentView === AppView.TABLE
+                    ? "bg-teal-500 text-slate-950 font-black"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800"
+                )}
+              >
+                Data Tabel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigateView(AppView.ENTRY)}
+                className={cn(
+                  "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                  currentView === AppView.ENTRY
+                    ? "bg-teal-500 text-slate-950 font-black"
+                    : "text-slate-300 hover:text-white hover:bg-slate-800"
+                )}
+              >
+                Entri Data
+              </button>
+              {!isKecamatanUser && (
+                <button
+                  type="button"
+                  onClick={() => handleNavigateView(AppView.PPM)}
+                  className={cn(
+                    "px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer",
+                    currentView === AppView.PPM
+                      ? "bg-teal-500 text-slate-950 font-black"
+                      : "text-slate-300 hover:text-white hover:bg-slate-800"
+                  )}
+                >
+                  Data PPM
+                </button>
+              )}
+            </nav>
+          )}
+
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* Tombol Toggle Orientasi untuk Tampilan Tabel atau Grafik di Mobile */}
+            {isMobile && requiresLandscape && isPortrait && (
+              <button
+                type="button"
+                onClick={() => setLandscapeOverride(prev => prev === 'auto' ? 'portrait' : 'auto')}
+                title={landscapeOverride === 'auto' ? 'Kembalikan ke mode potret' : 'Tampilkan mode landscape otomatis'}
+                className={cn(
+                  "flex items-center gap-1 rounded-lg border text-[10px] font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0",
+                  landscapeOverride === 'auto'
+                    ? "bg-teal-500/15 border-teal-500/40 text-teal-300 hover:bg-teal-500/25 px-2 py-1"
+                    : "bg-slate-900 border-slate-700 text-slate-300 hover:text-teal-300 px-2 py-1.5"
+                )}
+              >
+                {landscapeOverride === 'auto' ? (
+                  <>
+                    <Smartphone className="w-3 h-3" />
+                    <span>Potret</span>
+                  </>
+                ) : (
+                  <>
+                    <RotateCw className="w-3 h-3 text-teal-400" />
+                    <span>Landscape</span>
+                  </>
+                )}
+              </button>
+            )}
+
             {/* Pemilih Tahun Pelaporan Global */}
-            <div className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
+            <div
+              className={cn(
+                "flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-300 shadow-inner",
+                isMobileLandscape ? "px-2 py-1" : "px-2 sm:px-2.5 py-1.5"
+              )}
+            >
               <Calendar className="w-3.5 h-3.5 text-teal-400 shrink-0" />
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Tahun:</span>
               <select
@@ -961,7 +1143,12 @@ export default function App() {
             {/* Periode Selector, Refresh, dan Search hanya ditampilkan di Dashboard */}
             {currentView === AppView.DASHBOARD && (
               <>
-                <div className="flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2 sm:px-2.5 py-1.5 text-xs text-slate-300 shadow-inner">
+                <div
+                  className={cn(
+                    "flex items-center space-x-1 sm:space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-300 shadow-inner",
+                    isMobileLandscape ? "px-2 py-1" : "px-2 sm:px-2.5 py-1.5"
+                  )}
+                >
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Periode:</span>
                   <select
                     id="header-period-select"
@@ -977,25 +1164,29 @@ export default function App() {
                   </select>
                 </div>
 
-                <button 
-                  onClick={() => fetchData()}
-                  disabled={isLoading || isRefreshing}
-                  title="Segarkan data dari Google Sheets"
-                  className="p-1.5 sm:p-2 hover:bg-slate-700 text-slate-400 hover:text-teal-400 rounded-lg transition-colors cursor-pointer disabled:opacity-50 shrink-0"
-                >
-                  <RefreshCw className={cn("w-4 h-4", (isLoading || isRefreshing) && "animate-spin text-teal-400")} />
-                </button>
+                {!isMobileLandscape && (
+                  <>
+                    <button 
+                      onClick={() => fetchData()}
+                      disabled={isLoading || isRefreshing}
+                      title="Segarkan data dari Google Sheets"
+                      className="p-1.5 sm:p-2 hover:bg-slate-700 text-slate-400 hover:text-teal-400 rounded-lg transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                    >
+                      <RefreshCw className={cn("w-4 h-4", (isLoading || isRefreshing) && "animate-spin text-teal-400")} />
+                    </button>
 
-                <div className="relative group">
-                  <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 sm:w-4 h-3.5 sm:h-4 text-slate-500" />
-                  <input 
-                    type="text" 
-                    placeholder="Cari..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-8 sm:pl-10 pr-3 sm:pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-20 sm:w-44 transition-all focus:w-28 sm:focus:w-52"
-                  />
-                </div>
+                    <div className="relative group">
+                      <Search className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 sm:w-4 h-3.5 sm:h-4 text-slate-500" />
+                      <input 
+                        type="text" 
+                        placeholder="Cari..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="bg-slate-700 border border-slate-600 rounded-full py-1.5 pl-8 sm:pl-10 pr-3 sm:pr-4 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 w-20 sm:w-44 transition-all focus:w-28 sm:focus:w-52"
+                      />
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -1014,9 +1205,14 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 pb-24 lg:pb-6 scroll-smooth bg-slate-900/50 custom-scrollbar">
-          {/* Stats Summary - Visible on Dashboard view */}
-          {currentView === AppView.DASHBOARD && (
+        <div
+          className={cn(
+            "flex-1 overflow-y-auto scroll-smooth bg-slate-900/50 custom-scrollbar",
+            isMobileLandscape ? "p-2.5 pb-3" : "p-3 sm:p-6 pb-24 lg:pb-6"
+          )}
+        >
+          {/* Stats Summary - Visible on Dashboard view (saat grafik mobile landscape terbuka, ditaruh di bawah grafik agar grafik langsung penuh di layar) */}
+          {currentView === AppView.DASHBOARD && !(isMobileLandscape && showMobileBarChart) && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <StatCard 
                 label="Capaian Tertinggi" 
@@ -1049,64 +1245,119 @@ export default function App() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-6"
+                className={isMobileLandscape ? "space-y-3" : "space-y-6"}
               >
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                  {/* Main Bar Chart */}
-                  <div className="lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl relative overflow-hidden min-w-0">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">Grafik Capaian Per Kecamatan</h3>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/30">
-                          {selectedMonth}
-                        </span>
+                <div className={cn("grid grid-cols-1 lg:grid-cols-4", isMobileLandscape ? "gap-3" : "gap-6")}>
+                  {/* Mobile Toggle Banner saat Grafik Capaian Per Kecamatan Disembunyikan */}
+                  {isMobile && !showMobileBarChart ? (
+                    <div className="lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
+                      <div className="min-w-0 pl-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-200">
+                            Grafik Capaian Per Kecamatan
+                          </h3>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/30">
+                            {selectedMonth}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                          Grafik disembunyikan di tampilan mobile. Ketuk tombol untuk menampilkan grafik secara landscape otomatis.
+                        </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLandscapeOverride('auto');
+                          setShowMobileBarChart(true);
+                        }}
+                        className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-teal-500/20 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                        <span>Tampilkan Grafik</span>
+                      </button>
+                    </div>
+                  ) : (
+                    /* Main Bar Chart */
+                    <div
+                      className={cn(
+                        "lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl shadow-xl relative overflow-hidden min-w-0",
+                        isMobileLandscape ? "p-3" : "p-6"
+                      )}
+                    >
+                      <div className="absolute top-0 left-0 w-1 h-full bg-teal-500"></div>
+                      <div
+                        className={cn(
+                          "flex flex-col sm:flex-row sm:items-center justify-between landscape-row",
+                          isMobileLandscape ? "gap-2 mb-2" : "gap-3 mb-6"
+                        )}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <h3 className={cn("font-bold uppercase tracking-wider text-slate-300", isMobileLandscape ? "text-xs" : "text-sm")}>
+                            Grafik Capaian Per Kecamatan
+                          </h3>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/30">
+                            {selectedMonth}
+                          </span>
+                        </div>
 
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center text-[10px] text-emerald-400 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500 mr-1"></div> {'>'}80%</span>
-                          <span className="flex items-center text-[10px] text-amber-400 font-bold"><div className="w-2 h-2 rounded-full bg-amber-500 mr-1"></div> 50-80%</span>
-                          <span className="flex items-center text-[10px] text-rose-400 font-bold"><div className="w-2 h-2 rounded-full bg-rose-500 mr-1"></div> {'<'}50%</span>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center text-[10px] text-emerald-400 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500 mr-1"></div> {'>'}80%</span>
+                            <span className="flex items-center text-[10px] text-amber-400 font-bold"><div className="w-2 h-2 rounded-full bg-amber-500 mr-1"></div> 50-80%</span>
+                            <span className="flex items-center text-[10px] text-rose-400 font-bold"><div className="w-2 h-2 rounded-full bg-rose-500 mr-1"></div> {'<'}50%</span>
+                          </div>
+
+                          {isMobile && (
+                            <button
+                              type="button"
+                              onClick={() => setShowMobileBarChart(false)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-rose-500/15 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-500/30 text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
+                              title="Sembunyikan Grafik Capaian Per Kecamatan"
+                            >
+                              <EyeOff className="w-3.5 h-3.5" />
+                              <span>Sembunyikan Grafik</span>
+                            </button>
+                          )}
                         </div>
                       </div>
+                      <div className={cn("w-full min-w-0", isMobileLandscape ? "h-[245px]" : "h-[280px] sm:h-[350px]")}>
+                        <ResponsiveContainer key={isMobileLandscape ? 'bar-landscape' : 'bar-portrait'} width="100%" height="100%" minWidth={0} minHeight={0}>
+                          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: isMobileLandscape ? 48 : 40 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
+                            <XAxis 
+                              dataKey="kecamatan" 
+                              interval={0} 
+                              tick={{ fontSize: isMobileLandscape ? 8 : 9, fill: '#64748b', fontWeight: 600 }}
+                              angle={-45}
+                              textAnchor="end"
+                              stroke="#334155"
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 10, fill: '#64748b' }}
+                              stroke="#334155"
+                              domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)]}
+                              tickFormatter={(v) => `${v}%`}
+                            />
+                            <Tooltip 
+                              cursor={{ fill: 'rgba(20, 184, 166, 0.05)' }}
+                              contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
+                              itemStyle={{ color: '#2dd4bf', fontWeight: 'bold' }}
+                              formatter={(val: any) => [`${Number(val).toFixed(2)}%`, 'Prosentase']}
+                            />
+                            <Bar dataKey="percentage" radius={[4, 4, 0, 0]}>
+                              {chartData.map((entry, index) => (
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={entry.percentage >= 80 ? '#10b981' : (entry.percentage >= 50 ? '#f59e0b' : '#ef4444')} 
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
-                    <div className="h-[280px] sm:h-[350px] w-full min-w-0">
-                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 40 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
-                          <XAxis 
-                            dataKey="kecamatan" 
-                            interval={0} 
-                            tick={{ fontSize: 9, fill: '#64748b', fontWeight: 600 }}
-                            angle={-45}
-                            textAnchor="end"
-                            stroke="#334155"
-                          />
-                          <YAxis 
-                            tick={{ fontSize: 10, fill: '#64748b' }}
-                            stroke="#334155"
-                            domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)]}
-                            tickFormatter={(v) => `${v}%`}
-                          />
-                          <Tooltip 
-                            cursor={{ fill: 'rgba(20, 184, 166, 0.05)' }}
-                            contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '8px' }}
-                            itemStyle={{ color: '#2dd4bf', fontWeight: 'bold' }}
-                            formatter={(val: any) => [`${Number(val).toFixed(2)}%`, 'Prosentase']}
-                          />
-                          <Bar dataKey="percentage" radius={[4, 4, 0, 0]}>
-                            {chartData.map((entry, index) => (
-                              <Cell 
-                                key={`cell-${index}`} 
-                                fill={entry.percentage >= 80 ? '#10b981' : (entry.percentage >= 50 ? '#f59e0b' : '#ef4444')} 
-                              />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Summary Pie Chart */}
                   <div className="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl flex flex-col items-center min-w-0">
@@ -1157,6 +1408,33 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* Stats Summary di bawah grafik saat mode mobile landscape agar grafik langsung tampil penuh di atas */}
+                {isMobileLandscape && showMobileBarChart && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 landscape-grid-3 gap-3">
+                    <StatCard 
+                      label="Capaian Tertinggi" 
+                      name={statsData.isEmpty ? '-' : (statsData.highest?.kecamatan || '-')}
+                      value={statsData.isEmpty ? 0 : (statsData.highest?.percentage || 0)}
+                      icon={ArrowUpRight}
+                      color="emerald"
+                    />
+                    <StatCard 
+                      label="Capaian Terendah" 
+                      name={statsData.isEmpty ? '-' : (statsData.lowest?.kecamatan || '-')}
+                      value={statsData.isEmpty ? 0 : (statsData.lowest?.percentage || 0)}
+                      icon={ArrowDownRight}
+                      color="rose"
+                    />
+                    <StatCard 
+                      label="Total Kabupaten" 
+                      name="AKUMULASI"
+                      value={statsData.isEmpty ? 0 : (statsData.total?.percentage || 0)}
+                      icon={Globe}
+                      color="sky"
+                    />
+                  </div>
+                )}
 
                 {/* Panel Metode Kontrasepsi di dalam Dashboard */}
                 <div className="bg-slate-800 border border-slate-700 rounded-xl p-5 sm:p-6 shadow-xl space-y-4">
@@ -1272,6 +1550,7 @@ export default function App() {
                   currentYear={currentPpmYear}
                   availableYears={availablePpmYears}
                   onYearChange={handleSwitchYear}
+                  isMobileLandscape={isMobileLandscape}
                 />
               </motion.div>
             ) : currentView === AppView.PPM && !isKecamatanUser ? (
@@ -1291,6 +1570,7 @@ export default function App() {
                   onYearChange={handleSwitchYear}
                   isAdmin={currentUser?.role === 'admin'}
                   onOpenEntrySidebar={handleOpenEntrySidebar}
+                  isMobileLandscape={isMobileLandscape}
                 />
               </motion.div>
             ) : (
@@ -1314,13 +1594,15 @@ export default function App() {
                   currentYear={currentPpmYear}
                   availableYears={availablePpmYears}
                   onYearChange={handleSwitchYear}
+                  isMobileLandscape={isMobileLandscape}
                 />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Mobile Bottom Navigation Bar (Menjadikan menu utama langsung terlihat dan dapat diakses di HP sama seperti di komputer) */}
+        {/* Mobile Bottom Navigation Bar (Disembunyikan saat mode landscape tabel karena tab sudah ada di header atas) */}
+        {!isMobileLandscape && (
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-850/95 backdrop-blur-md border-t border-slate-700/80 px-2 py-1.5 flex items-center justify-around shadow-2xl">
           <button
             type="button"
@@ -1380,6 +1662,7 @@ export default function App() {
             </button>
           )}
         </nav>
+        )}
 
         {/* Footer Info (Desktop) */}
         <footer className="h-8 bg-slate-800 border-t border-slate-700 px-6 hidden lg:flex items-center justify-between text-[10px] font-bold text-slate-500 shrink-0">
@@ -1402,6 +1685,7 @@ export default function App() {
         lockedKecamatan={currentUser?.role === 'plkb' ? currentUser?.kecamatan : undefined}
         currentPpmTargets={currentPpmTargets}
         currentYear={currentPpmYear}
+        isMobileLandscape={isMobileLandscape}
       />
 
       {/* Modal Ubah Kata Sandi (Hanya Bisa Merubah Password) */}
@@ -1420,7 +1704,7 @@ export default function App() {
       {/* Modal Tambah Tahun Baru Global */}
       {showGlobalAddYearModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-scale-up">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full max-h-[94%] overflow-y-auto custom-scrollbar p-6 shadow-2xl space-y-4 animate-scale-up">
             <div className="flex items-center space-x-3 text-teal-400">
               <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20">
                 <Calendar className="w-6 h-6" />
@@ -1476,7 +1760,7 @@ export default function App() {
       {/* Modal Konfirmasi Kosongkan Data */}
       {showEmptyConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-up">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full max-h-[94%] overflow-y-auto custom-scrollbar p-6 shadow-2xl space-y-4 animate-scale-up">
             <div className="flex items-center space-x-3 text-rose-400">
               <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
                 <RotateCcw className="w-6 h-6" />

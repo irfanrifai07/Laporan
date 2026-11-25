@@ -34,6 +34,7 @@ interface PpmViewProps {
   onDeleteYearTargets?: (year: string) => Promise<void>;
   onYearChange?: (year: string) => void;
   isAdmin?: boolean;
+  isMobileLandscape?: boolean;
 }
 
 export const PpmView: React.FC<PpmViewProps> = ({ 
@@ -46,6 +47,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
   onDeleteYearTargets,
   onYearChange,
   isAdmin = true,
+  isMobileLandscape = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKec, setSelectedKec] = useState<string | null>(null);
@@ -213,22 +215,30 @@ export const PpmView: React.FC<PpmViewProps> = ({
   }, [modalTargetList, editingKecamatan]);
 
   return (
-    <div className="space-y-4">
+    <div className={isMobileLandscape ? "space-y-2.5" : "space-y-4"}>
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-800 via-slate-850 to-slate-800 border border-slate-700 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-        <div className="space-y-1.5 max-w-2xl">
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-lg bg-teal-500/20 text-teal-400 border border-teal-500/30">
-              <Target className="w-5 h-5" />
-            </div>
-            <h2 className="text-base sm:text-lg font-black text-slate-100 uppercase tracking-tight">
+      <div
+        className={`bg-gradient-to-r from-slate-800 via-slate-850 to-slate-800 border border-slate-700 rounded-2xl shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between landscape-row ${
+          isMobileLandscape ? "p-2.5 px-3 gap-2" : "p-5 sm:p-6 gap-4"
+        }`}
+      >
+        <div className="space-y-1 max-w-2xl">
+          <div className="flex items-center space-x-2">
+            {!isMobileLandscape && (
+              <div className="p-2 rounded-lg bg-teal-500/20 text-teal-400 border border-teal-500/30">
+                <Target className="w-5 h-5" />
+              </div>
+            )}
+            <h2 className={`${isMobileLandscape ? "text-xs" : "text-base sm:text-lg"} font-black text-slate-100 uppercase tracking-tight`}>
               Data Target PPM (Perkiraan Permintaan Masyarakat)
             </h2>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Target PPM resmi pelayanan KB Kabupaten Bojonegoro untuk 28 Kecamatan mencakup 7 metode kontrasepsi (<strong className="text-slate-200">IUD, MOW, MOP, KONDOM, IMPLAN, SUNTIK, PIL</strong>).
-            Sebagai <strong className="text-teal-400">ADMIN</strong>, Anda dapat merubah target setiap tahun dan seluruh tampilan Dashboard, Tabel, serta Entri Data otomatis terintegrasi.
-          </p>
+          {!isMobileLandscape && (
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Target PPM resmi pelayanan KB Kabupaten Bojonegoro untuk 28 Kecamatan mencakup 7 metode kontrasepsi (<strong className="text-slate-200">IUD, MOW, MOP, KONDOM, IMPLAN, SUNTIK, PIL</strong>).
+              Sebagai <strong className="text-teal-400">ADMIN</strong>, Anda dapat merubah target setiap tahun dan seluruh tampilan Dashboard, Tabel, serta Entri Data otomatis terintegrasi.
+            </p>
+          )}
         </div>
 
         {/* Kontrol Tahun & Tombol Edit Target */}
@@ -287,97 +297,103 @@ export const PpmView: React.FC<PpmViewProps> = ({
       </div>
 
       {/* Ringkasan Statistik PPM Bojonegoro */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 shadow-md">
+      <div className={`grid grid-cols-1 sm:grid-cols-3 landscape-grid-3 ${isMobileLandscape ? "gap-2" : "gap-3 sm:gap-4"}`}>
+        <div className={`bg-slate-800/90 border border-slate-700 rounded-2xl shadow-md ${isMobileLandscape ? "p-2.5" : "p-4"}`}>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
               Total Target PPM ({activeYear})
             </span>
-            <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20">
-              <Target className="w-4 h-4" />
-            </div>
+            {!isMobileLandscape && (
+              <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                <Target className="w-4 h-4" />
+              </div>
+            )}
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-slate-100">{formatNumber(totalBojonegoro.total)}</span>
-            <span className="text-xs font-semibold text-teal-400">Akseptor</span>
+          <div className={`${isMobileLandscape ? "mt-1" : "mt-2"} flex items-baseline gap-2`}>
+            <span className={`${isMobileLandscape ? "text-lg" : "text-2xl sm:text-3xl"} font-black text-slate-100 tabular-nums`}>{formatNumber(totalBojonegoro.total)}</span>
+            <span className="text-[11px] font-semibold text-teal-400">Akseptor</span>
           </div>
-          <p className="text-[10px] text-slate-500 mt-1">28 Kecamatan se-Kab. Bojonegoro</p>
+          {!isMobileLandscape && <p className="text-[10px] text-slate-500 mt-1">28 Kecamatan se-Kab. Bojonegoro</p>}
         </div>
 
-        <div className="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 shadow-md">
+        <div className={`bg-slate-800/90 border border-slate-700 rounded-2xl shadow-md ${isMobileLandscape ? "p-2.5" : "p-4"}`}>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">
+            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
               Target MKJP ({activeYear})
             </span>
-            <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
+            {!isMobileLandscape && (
+              <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+            )}
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-indigo-300">{formatNumber(totalBojonegoro.mkjp)}</span>
-            <span className="text-xs font-semibold text-indigo-400">
+          <div className={`${isMobileLandscape ? "mt-1" : "mt-2"} flex items-baseline gap-2`}>
+            <span className={`${isMobileLandscape ? "text-lg" : "text-2xl sm:text-3xl"} font-black text-indigo-300 tabular-nums`}>{formatNumber(totalBojonegoro.mkjp)}</span>
+            <span className="text-[11px] font-semibold text-indigo-400 tabular-nums">
               ({totalBojonegoro.total > 0 ? ((totalBojonegoro.mkjp / totalBojonegoro.total) * 100).toFixed(2) : 0}%)
             </span>
           </div>
-          <p className="text-[10px] text-slate-500 mt-1">IUD, MOW, MOP, Implan</p>
+          {!isMobileLandscape && <p className="text-[10px] text-slate-500 mt-1">IUD, MOW, MOP, Implan</p>}
         </div>
 
-        <div className="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 shadow-md">
+        <div className={`bg-slate-800/90 border border-slate-700 rounded-2xl shadow-md ${isMobileLandscape ? "p-2.5" : "p-4"}`}>
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider">
+            <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider">
               Target Non-MKJP ({activeYear})
             </span>
-            <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
-              <Layers className="w-4 h-4" />
-            </div>
+            {!isMobileLandscape && (
+              <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                <Layers className="w-4 h-4" />
+              </div>
+            )}
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-sky-300">{formatNumber(totalBojonegoro.nonMkjp)}</span>
-            <span className="text-xs font-semibold text-sky-400">
+          <div className={`${isMobileLandscape ? "mt-1" : "mt-2"} flex items-baseline gap-2`}>
+            <span className={`${isMobileLandscape ? "text-lg" : "text-2xl sm:text-3xl"} font-black text-sky-300 tabular-nums`}>{formatNumber(totalBojonegoro.nonMkjp)}</span>
+            <span className="text-[11px] font-semibold text-sky-400 tabular-nums">
               ({totalBojonegoro.total > 0 ? ((totalBojonegoro.nonMkjp / totalBojonegoro.total) * 100).toFixed(2) : 0}%)
             </span>
           </div>
-          <p className="text-[10px] text-slate-500 mt-1">Suntik, Pil, Kondom</p>
+          {!isMobileLandscape && <p className="text-[10px] text-slate-500 mt-1">Suntik, Pil, Kondom</p>}
         </div>
       </div>
 
       {/* Kartu Rincian Target Per Alokon Kabupaten */}
-      <div className="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-md">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center">
+      <div className={`bg-slate-800/80 border border-slate-700 rounded-2xl shadow-md ${isMobileLandscape ? "p-2.5" : "p-4"}`}>
+        <div className={`flex items-center justify-between ${isMobileLandscape ? "mb-2" : "mb-3"}`}>
+          <span className={`${isMobileLandscape ? "text-[11px]" : "text-xs"} font-bold text-slate-300 uppercase tracking-wider flex items-center`}>
             <Info className="w-3.5 h-3.5 mr-1.5 text-teal-400" />
             Rincian Target PPM Kabupaten Bojonegoro Per Alokon (Tahun {activeYear})
           </span>
           <span className="text-[10px] text-slate-500 font-semibold">Total: 7 Metode</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-center">
-          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 landscape-grid-7 gap-1.5 sm:gap-2 text-center">
+          <div className={`${isMobileLandscape ? "p-1.5" : "p-2.5"} rounded-xl bg-slate-900/60 border border-slate-700/60`}>
             <span className="text-[10px] font-bold text-purple-400 block">IUD</span>
-            <span className="text-base font-black text-slate-200 mt-0.5 block">{formatNumber(totalBojonegoro.IUD)}</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-base"} font-black text-slate-200 mt-0.5 block tabular-nums`}>{formatNumber(totalBojonegoro.IUD)}</span>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
+          <div className={`${isMobileLandscape ? "p-1.5" : "p-2.5"} rounded-xl bg-slate-900/60 border border-slate-700/60`}>
             <span className="text-[10px] font-bold text-rose-400 block">MOW</span>
-            <span className="text-base font-black text-slate-200 mt-0.5 block">{formatNumber(totalBojonegoro.MOW)}</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-base"} font-black text-slate-200 mt-0.5 block tabular-nums`}>{formatNumber(totalBojonegoro.MOW)}</span>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
+          <div className={`${isMobileLandscape ? "p-1.5" : "p-2.5"} rounded-xl bg-slate-900/60 border border-slate-700/60`}>
             <span className="text-[10px] font-bold text-blue-400 block">MOP</span>
-            <span className="text-base font-black text-slate-200 mt-0.5 block">{formatNumber(totalBojonegoro.MOP)}</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-base"} font-black text-slate-200 mt-0.5 block tabular-nums`}>{formatNumber(totalBojonegoro.MOP)}</span>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
+          <div className={`${isMobileLandscape ? "p-1.5" : "p-2.5"} rounded-xl bg-slate-900/60 border border-slate-700/60`}>
             <span className="text-[10px] font-bold text-amber-400 block">IMPLAN</span>
-            <span className="text-base font-black text-slate-200 mt-0.5 block">{formatNumber(totalBojonegoro.IMPLAN)}</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-base"} font-black text-slate-200 mt-0.5 block tabular-nums`}>{formatNumber(totalBojonegoro.IMPLAN)}</span>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
+          <div className={`${isMobileLandscape ? "p-1.5" : "p-2.5"} rounded-xl bg-slate-900/60 border border-slate-700/60`}>
             <span className="text-[10px] font-bold text-emerald-400 block">SUNTIK</span>
-            <span className="text-base font-black text-slate-200 mt-0.5 block">{formatNumber(totalBojonegoro.SUNTIK)}</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-base"} font-black text-slate-200 mt-0.5 block tabular-nums`}>{formatNumber(totalBojonegoro.SUNTIK)}</span>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
+          <div className={`${isMobileLandscape ? "p-1.5" : "p-2.5"} rounded-xl bg-slate-900/60 border border-slate-700/60`}>
             <span className="text-[10px] font-bold text-teal-400 block">PIL</span>
-            <span className="text-base font-black text-slate-200 mt-0.5 block">{formatNumber(totalBojonegoro.PIL)}</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-base"} font-black text-slate-200 mt-0.5 block tabular-nums`}>{formatNumber(totalBojonegoro.PIL)}</span>
           </div>
-          <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-700/60">
+          <div className={`${isMobileLandscape ? "p-1.5" : "p-2.5"} rounded-xl bg-slate-900/60 border border-slate-700/60`}>
             <span className="text-[10px] font-bold text-cyan-400 block">KONDOM</span>
-            <span className="text-base font-black text-slate-200 mt-0.5 block">{formatNumber(totalBojonegoro.KONDOM)}</span>
+            <span className={`${isMobileLandscape ? "text-xs" : "text-base"} font-black text-slate-200 mt-0.5 block tabular-nums`}>{formatNumber(totalBojonegoro.KONDOM)}</span>
           </div>
         </div>
       </div>
@@ -385,15 +401,21 @@ export const PpmView: React.FC<PpmViewProps> = ({
       {/* Tabel Utama Data PPM */}
       <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
         {/* Search Bar Tunggal & Header Toolbar */}
-        <div className="p-4 sm:px-6 bg-slate-850 border-b border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div
+          className={`bg-slate-850 border-b border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between landscape-row ${
+            isMobileLandscape ? "p-2 px-3 gap-2" : "p-4 sm:px-6 gap-3"
+          }`}
+        >
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
               type="text"
               placeholder="Cari kecamatan..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 focus:border-teal-500 rounded-xl py-2.5 pl-10 pr-9 text-xs font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-all shadow-inner"
+              className={`w-full bg-slate-800 border border-slate-700 focus:border-teal-500 rounded-xl pl-9 pr-9 text-xs font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-all shadow-inner ${
+                isMobileLandscape ? "py-1.5" : "py-2.5"
+              }`}
             />
             {searchQuery && (
               <button
@@ -419,12 +441,12 @@ export const PpmView: React.FC<PpmViewProps> = ({
 
         {/* Tabel Data PPM */}
         <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[1050px]">
+          <table className={`w-full text-left border-collapse ${isMobileLandscape ? "min-w-[940px]" : "min-w-[1050px]"}`}>
             <thead>
               {/* Grup Header */}
               <tr className="bg-slate-900/95 text-[10px] font-black text-slate-400 uppercase border-b border-slate-700">
-                <th className="px-3.5 py-3 text-center w-12" rowSpan={2}>No</th>
-                <th className="px-4 py-3" rowSpan={2}>Kecamatan</th>
+                <th className={`${isMobileLandscape ? "px-2.5 py-2" : "px-3.5 py-3"} text-center w-10 sticky left-0 bg-slate-900 z-10`} rowSpan={2}>No</th>
+                <th className={`${isMobileLandscape ? "px-3 py-2 min-w-[130px]" : "px-4 py-3 min-w-[150px]"} sticky left-10 bg-slate-900 z-10`} rowSpan={2}>Kecamatan</th>
                 <th className="px-3 py-2 text-center bg-indigo-500/10 text-indigo-300 border-x border-slate-700/60" colSpan={4}>
                   Metode MKJP
                 </th>
@@ -456,6 +478,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
             <tbody className="divide-y divide-slate-700/50">
               {filteredList.map((row, idx) => {
                 const isSelected = selectedKec === row.kecamatan;
+                const cellPad = isMobileLandscape ? "px-2.5 py-2" : "px-3 py-3";
 
                 return (
                   <tr 
@@ -467,11 +490,11 @@ export const PpmView: React.FC<PpmViewProps> = ({
                         : 'hover:bg-slate-750/50'
                     }`}
                   >
-                    <td className="px-3.5 py-3 text-center text-xs font-medium text-slate-500">
+                    <td className={`${cellPad} text-center text-xs font-medium text-slate-500 sticky left-0 z-10 ${isSelected ? "bg-slate-850" : "bg-slate-800"}`}>
                       {idx + 1}
                     </td>
 
-                    <td className="px-4 py-3 text-xs font-bold text-slate-200">
+                    <td className={`${cellPad} text-xs font-bold text-slate-200 sticky left-10 z-10 ${isSelected ? "bg-slate-850" : "bg-slate-800"}`}>
                       {row.kecamatan}
                     </td>
 
@@ -545,10 +568,10 @@ export const PpmView: React.FC<PpmViewProps> = ({
 
               {/* Baris Total Kabupaten Bojonegoro */}
               <tr className="bg-teal-500/15 font-black border-t-2 border-slate-600 text-slate-100">
-                <td className="px-3.5 py-3.5 text-center text-xs font-bold text-teal-400">
+                <td className="px-2.5 py-3 text-center text-xs font-bold text-teal-400 sticky left-0 z-10 bg-slate-850">
                   -
                 </td>
-                <td className="px-4 py-3.5 text-xs font-black text-teal-300 uppercase tracking-wide">
+                <td className="px-3 py-3 text-xs font-black text-teal-300 uppercase tracking-wide sticky left-10 z-10 bg-slate-850">
                   JUMLAH (KABUPATEN BOJONEGORO)
                 </td>
                 <td className="px-3 py-3.5 text-center text-xs font-black text-purple-300">
@@ -594,10 +617,10 @@ export const PpmView: React.FC<PpmViewProps> = ({
 
       {/* MODAL: Edit Target PPM (Admin) */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200 ${isMobileLandscape ? "p-2" : "p-3 sm:p-4"}`}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[94%] flex flex-col shadow-2xl overflow-hidden">
             {/* Modal Header */}
-            <div className="p-4 sm:px-6 bg-slate-850 border-b border-slate-700 flex items-center justify-between shrink-0">
+            <div className={`bg-slate-850 border-b border-slate-700 flex items-center justify-between shrink-0 ${isMobileLandscape ? "p-2.5 px-4" : "p-4 sm:px-6"}`}>
               <div className="flex items-center space-x-2.5">
                 <div className="p-2 rounded-xl bg-teal-500/20 text-teal-400 border border-teal-500/30">
                   <Sliders className="w-5 h-5" />
@@ -722,7 +745,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
                   </div>
 
                   {/* Form Input 7 Metode */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 landscape-grid-2 gap-4">
                     {/* Grup MKJP */}
                     <div className="bg-slate-850 border border-slate-700 rounded-xl p-4 space-y-3">
                       <div className="flex items-center justify-between pb-2 border-b border-slate-700/60">
@@ -854,12 +877,12 @@ export const PpmView: React.FC<PpmViewProps> = ({
                 </div>
               ) : (
                 /* MODE 2: Tabel Spreadsheet Seluruh 28 Kecamatan */
-                <div className="border border-slate-700 rounded-xl overflow-x-auto max-h-[500px] custom-scrollbar">
+                <div className={`border border-slate-700 rounded-xl overflow-x-auto custom-scrollbar ${isMobileLandscape ? "max-h-[210px]" : "max-h-[500px]"}`}>
                   <table className="w-full text-left border-collapse min-w-[900px]">
-                    <thead className="sticky top-0 bg-slate-900 text-[10px] font-black uppercase text-slate-400 z-10 border-b border-slate-700">
+                    <thead className="sticky top-0 bg-slate-900 text-[10px] font-black uppercase text-slate-400 z-20 border-b border-slate-700">
                       <tr>
-                        <th className="p-2.5 text-center w-10">No</th>
-                        <th className="p-2.5">Kecamatan</th>
+                        <th className="p-2.5 text-center w-10 sticky left-0 bg-slate-900 z-20">No</th>
+                        <th className="p-2.5 sticky left-10 bg-slate-900 z-20 min-w-[130px]">Kecamatan</th>
                         <th className="p-2 text-center text-purple-400">IUD</th>
                         <th className="p-2 text-center text-rose-400">MOW</th>
                         <th className="p-2 text-center text-blue-400">MOP</th>
@@ -879,8 +902,8 @@ export const PpmView: React.FC<PpmViewProps> = ({
 
                         return (
                           <tr key={kec} className="hover:bg-slate-800/40">
-                            <td className="p-2 text-center text-slate-500 text-[11px]">{idx + 1}</td>
-                            <td className="p-2 font-bold text-slate-200">{kec}</td>
+                            <td className="p-2 text-center text-slate-500 text-[11px] sticky left-0 bg-slate-900 z-10">{idx + 1}</td>
+                            <td className="p-2 font-bold text-slate-200 sticky left-10 bg-slate-900 z-10">{kec}</td>
                             {METHOD_KEYS.map(m => (
                               <td key={m} className="p-1 text-center">
                                 <input
@@ -905,7 +928,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 sm:px-6 bg-slate-850 border-t border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+            <div className={`bg-slate-850 border-t border-slate-700 flex flex-col sm:flex-row items-center justify-between shrink-0 landscape-row ${isMobileLandscape ? "p-2.5 px-4 gap-2" : "p-4 sm:px-6 gap-3"}`}>
               <div className="flex items-center text-xs text-slate-400">
                 <Info className="w-4 h-4 mr-1.5 text-teal-400 shrink-0" />
                 <span>
@@ -939,7 +962,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
       {/* MODAL: Tambah Tahun Baru */}
       {showAddYearModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm max-h-[94%] overflow-y-auto custom-scrollbar p-6 shadow-2xl space-y-4">
             <div className="flex items-center space-x-2.5">
               <div className="p-2 rounded-xl bg-teal-500/20 text-teal-400 border border-teal-500/30">
                 <Calendar className="w-5 h-5" />
@@ -990,7 +1013,7 @@ export const PpmView: React.FC<PpmViewProps> = ({
       {/* MODAL: Konfirmasi Hapus Data PPM Satu Tahun (Admin) */}
       {showDeletePpmModal && isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md max-h-[94%] overflow-y-auto custom-scrollbar p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center space-x-3">
                 <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0">

@@ -105,7 +105,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden"
+          className="w-full max-w-md max-h-[94%] overflow-y-auto custom-scrollbar bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl"
         >
           {/* Header */}
           <div className="px-5 py-4 bg-slate-850 border-b border-slate-700/80 flex items-center justify-between">
