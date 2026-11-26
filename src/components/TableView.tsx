@@ -362,7 +362,7 @@ export const TableView: React.FC<TableViewProps> = ({
               <select
                 value={activeCategory}
                 onChange={(e) => setActiveCategory(e.target.value)}
-                className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer max-w-[140px] sm:max-w-[200px] truncate"
+                className="bg-transparent text-base sm:text-xs font-bold text-teal-400 focus:outline-none cursor-pointer max-w-[140px] sm:max-w-[200px] truncate"
               >
                 <optgroup label="Kelompok" className="bg-slate-800 text-slate-300 font-bold">
                   <option value="Semua Metode">SEMUA METODE</option>
@@ -384,7 +384,7 @@ export const TableView: React.FC<TableViewProps> = ({
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
+                className="bg-transparent text-base sm:text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
               >
                 {MONTHS.map(m => (
                   <option key={m} value={m} className="bg-slate-800 text-slate-200">
@@ -404,7 +404,7 @@ export const TableView: React.FC<TableViewProps> = ({
                     onYearChange(e.target.value);
                   }
                 }}
-                className="w-[52px] bg-transparent text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
+                className="w-[64px] sm:w-[52px] bg-transparent text-base sm:text-xs font-black text-indigo-300 focus:outline-none cursor-pointer"
               >
                 {availableYears.map(yr => (
                   <option key={yr} value={yr} className="bg-slate-800 text-slate-200 font-semibold">
@@ -469,7 +469,7 @@ export const TableView: React.FC<TableViewProps> = ({
               placeholder="Cari data kecamatan atau metode kontrasepsi..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full bg-slate-800 border border-slate-700 focus:border-teal-500 rounded-xl pl-9 pr-9 text-xs font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-all shadow-inner ${
+              className={`w-full bg-slate-800 border border-slate-700 focus:border-teal-500 rounded-xl pl-9 pr-9 text-base sm:text-xs font-medium text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition-all shadow-inner ${
                 isMobileLandscape ? "py-1.5" : "py-2.5"
               }`}
             />

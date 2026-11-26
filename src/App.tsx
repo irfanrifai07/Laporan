@@ -1260,7 +1260,7 @@ export default function App() {
                   id="header-period-select"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-transparent text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
+                  className="bg-transparent text-base sm:text-xs font-bold text-teal-400 focus:outline-none cursor-pointer"
                 >
                   {MONTHS.map(m => (
                     <option key={m} value={m} className="bg-slate-800 text-slate-200">
@@ -1277,7 +1277,7 @@ export default function App() {
                   placeholder="Cari kecamatan..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 focus:border-teal-500 rounded-xl py-1.5 pl-8 pr-7 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                  className="w-full bg-slate-900 border border-slate-700 focus:border-teal-500 rounded-xl py-2 sm:py-1.5 pl-8 pr-7 text-base sm:text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
                 />
                 {searchQuery && (
                   <button

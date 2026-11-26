@@ -134,7 +134,7 @@ export const KecamatanPasswordsModal: React.FC<KecamatanPasswordsModalProps> = (
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari nama kecamatan..."
-                className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl pl-9 pr-8 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-xl pl-9 pr-8 py-2.5 sm:py-2 text-base sm:text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
               />
               {searchQuery && (
                 <button
